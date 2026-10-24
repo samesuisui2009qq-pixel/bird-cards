@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#2f5b45">
+<title>鸟类预习</title>
+<style>
+:root{
+  --bg:#f2f5f0; --card:#fff; --ink:#22301f; --muted:#7a8474;
+  --green:#3f7d46; --deep:#2f5b45; --border:#dde5d9; --danger:#c0392b;
+  --copper:#b25f2c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-tap-highlight-color:transparent}
+.view{max-width:640px;margin:0 auto;padding:0 12px 40px}
+.hidden{display:none!important}
+
+.topbar{display:flex;align-items:center;gap:10px;padding:16px 4px 8px}
+.topbar h1{font-size:20px;margin:0;flex:1}
+.topbar .sub{color:var(--muted);font-size:12px}
+.progress{font-size:14px;font-weight:600;color:var(--green);white-space:nowrap}
+
+.hero{background:var(--deep);color:#f8f1e1;border-radius:14px;padding:20px 18px;margin-top:6px}
+.hero h2{margin:0 0 4px;font-size:22px}
+.hero p{margin:0;color:rgba(248,241,225,.7);font-size:13px}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.field-label{font-weight:600;font-size:14px;margin-bottom:8px}
+.hint{color:var(--muted);font-weight:400;font-size:12px}
+
+.row{display:flex;gap:10px;align-items:center}
+.row input[type=url],.row input[type=text]{flex:1;min-width:0}
+input{padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;width:100%}
+input:focus{outline:2px solid var(--green);border-color:transparent}
+button{font:inherit;cursor:pointer}
+.btn{border:none;border-radius:9px;padding:10px 16px;font-size:14px;background:#eef2ec;color:var(--ink);white-space:nowrap}
+.btn.primary{background:var(--green);color:#fff}
+.btn.primary:active{background:var(--deep)}
+.btn.ghost{background:transparent;border:1px solid var(--border)}
+.btn.big{padding:14px 18px;font-size:16px;flex:1}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.status{margin-top:10px;font-size:13px;color:var(--muted);min-height:18px}
+.status.error{color:var(--danger)}
+.status.ok{color:var(--green)}
+.empty{color:var(--muted);text-align:center;padding:18px 0}
+
+.deck-list{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.deck-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.deck-info{flex:1;min-width:0}
+.deck-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deck-meta{color:var(--muted);font-size:12px;margin-top:2px}
+
+.opt{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;white-space:nowrap}
+.opt input{width:auto;flex:none}
+
+.flash-stage{margin-top:10px}
+.flash-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.flash-card img{width:100%;max-height:60vh;object-fit:contain;background:#0f1410;display:block}
+.flash-name{padding:18px;text-align:center;font-size:26px;font-weight:700;letter-spacing:2px;background:#fbfdf9}
+.flash-controls{margin-top:14px}
+
+.collections-list{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.collection-item{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.col-name{font-weight:600}
+.col-count{color:var(--muted);font-size:12px}
+.col-actions{display:flex;gap:8px}
+
+.modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center}
+.modal-mask{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+.modal-box{position:relative;background:var(--card);border-radius:14px;padding:18px;width:90%;max-width:420px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,.2)}
+.modal-box h3{margin:0 0 12px;font-size:17px}
+.collect-list{display:flex;flex-direction:column;gap:8px}
+.collect-item{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:9px;padding:10px 12px;cursor:pointer}
+.collect-item.active{border-color:var(--green);background:#f0f7f1}
+.collect-item .mark{color:var(--green);font-size:13px;white-space:nowrap}
+.collect-item:not(.active) .mark{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- 首页：加载链接 + 历史记录 -->
+<div id="view-home" class="view">
+  <header class="topbar">
+    <h1>🐦 鸟类预习</h1>
+    <span class="sub">手机 / 电脑通用</span>
+  </header>
+
+  <section class="hero">
+    <h2>加载内容</h2>
+    <p>粘贴一个「内容链接」，加载一组鸟图+鸟名，每个链接是一组独立卡片。</p>
+  </section>
+
+  <section class="card">
+    <label class="field-label">内容链接</label>
+    <div class="row">
+      <input id="link-input" type="url" placeholder="https://raw.githubusercontent.com/…/内容.json" />
+      <button id="btn-load" class="btn primary">加载</button>
+    </div>
+    <div id="load-status" class="status"></div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between">
+      <span class="field-label" style="margin:0">历史记录</span>
+      <label class="opt"><input type="checkbox" id="opt-shuffle" /> 乱序</label>
+      <button id="btn-collections" class="btn">📁 我的题库</button>
+    </div>
+    <div id="deck-list" class="deck-list">
+      <p class="empty">还没有卡片组。先在上方粘贴内容链接并「加载」。</p>
+    </div>
+  </section>
+</div>
+
+<!-- 闪卡视图 -->
+<div id="view-flash" class="view hidden">
+  <header class="topbar">
+    <button id="btn-back" class="btn ghost">← 返回</button>
+    <span id="flash-progress" class="progress">1 / 1</span>
+    <span id="flash-scope" class="sub">闪卡</span>
+  </header>
+  <section class="flash-stage">
+    <div class="flash-card">
+      <img id="flash-img" alt="鸟图" />
+      <div id="flash-name" class="flash-name hidden">——</div>
+    </div>
+    <div class="row flash-controls">
+      <button id="btn-show" class="btn primary big">显示鸟种名称</button>
+      <button id="btn-next" class="btn big">下一个</button>
+    </div>
+    <div class="row flash-controls">
+      <button id="btn-fav" class="btn big">⭐ 收藏</button>
+    </div>
+  </section>
+</div>
+
+<!-- 题库视图 -->
+<div id="view-collections" class="view hidden">
+  <header class="topbar">
+    <button id="btn-collections-back" class="btn ghost">← 返回</button>
+    <h1 style="font-size:18px;margin:0;flex:1">📁 我的题库</h1>
+  </header>
+  <section class="card">
+    <div class="row">
+      <input id="new-collection-name" type="text" placeholder="新建题库名称，如：目标鸟种" />
+      <button id="btn-new-collection" class="btn primary">新建</button>
+    </div>
+  </section>
+  <div id="collections-list" class="collections-list">
+    <p class="empty">还没有题库。点「新建」创建，然后在闪卡里点「⭐ 收藏」把鸟加进来。</p>
+  </div>
+</div>
+
+<!-- 收藏弹窗 -->
+<div id="modal-collect" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-box">
+    <h3>收藏到题库</h3>
+    <div id="collect-list" class="collect-list"></div>
+    <div class="row" style="margin-top:10px">
+      <input id="collect-new-name" type="text" placeholder="新建题库名称" />
+      <button id="btn-collect-new" class="btn primary">新建并收藏</button>
+    </div>
+    <button id="btn-collect-close" class="btn ghost" style="margin-top:10px;width:100%">关闭</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ---------- 状态 ----------
+let decks = [];          // [{id,name,date,url,cards:[{id,name,image}]}]
+let collections = [];    // [{id,name,cards:[{id,name,image}]}]
+let flashCards = [];     // 当前正在刷的卡片
+let flashIndex = 0;
+let flashScope = '';
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const viewHome = $('view-home');
+const viewFlash = $('view-flash');
+const viewCollections = $('view-collections');
+const linkInput = $('link-input');
+const btnLoad = $('btn-load');
+const loadStatus = $('load-status');
+const deckList = $('deck-list');
+const optShuffle = $('opt-shuffle');
+const btnCollections = $('btn-collections');
+const btnCollectionsBack = $('btn-collections-back');
+const newCollectionName = $('new-collection-name');
+const btnNewCollection = $('btn-new-collection');
+const collectionsList = $('collections-list');
+const btnBack = $('btn-back');
+const flashImg = $('flash-img');
+const flashName = $('flash-name');
+const flashProgress = $('flash-progress');
+const flashScopeEl = $('flash-scope');
+const btnShow = $('btn-show');
+const btnNext = $('btn-next');
+const btnFav = $('btn-fav');
+const modalCollect = $('modal-collect');
+const collectList = $('collect-list');
+const collectNewName = $('collect-new-name');
+const btnCollectNew = $('btn-collect-new');
+const btnCollectClose = $('btn-collect-close');
+
+// ---------- IndexedDB ----------
+const DB_NAME = 'birdcards', DB_VERSION = 1;
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if(!db.objectStoreNames.contains('decks')) db.createObjectStore('decks',{keyPath:'id'});
+      if(!db.objectStoreNames.contains('collections')) db.createObjectStore('collections',{keyPath:'id'});
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbPut(store,val){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(val);
+    tx.oncomplete=()=>{db.close();res();}; tx.onerror=()=>{db.close();rej(tx.error);};
+  }));
+}
+function dbGetAll(store){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly'); const r=tx.objectStore(store).getAll();
+    r.onsuccess=()=>{db.close();res(r.result||[]);}; r.onerror=()=>{db.close();rej(r.error);};
+  }));
+}
+
+function uid(){ return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
+function fmtDate(ts){
+  const d=new Date(ts), p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+async function saveDecks(){
+  try{ await openDB().then(db=>new Promise(res=>{
+    const tx=db.transaction('decks','readwrite'); tx.objectStore('decks').clear();
+    decks.forEach(d=>tx.objectStore('decks').put(d));
+    tx.oncomplete=()=>{db.close();res();};
+  })); }catch(e){}
+}
+async function saveCollections(){
+  try{ await openDB().then(db=>new Promise(res=>{
+    const tx=db.transaction('collections','readwrite'); tx.objectStore('collections').clear();
+    collections.forEach(c=>tx.objectStore('collections').put(c));
+    tx.oncomplete=()=>{db.close();res();};
+  })); }catch(e){}
+}
+
+// ---------- 加载内容链接 ----------
+function setStatus(msg, cls){ loadStatus.textContent=msg; loadStatus.className='status '+(cls||''); }
+
+async function loadContent(){
+  const url = linkInput.value.trim();
+  if(!url){ setStatus('请先粘贴内容链接','error'); return; }
+  btnLoad.disabled = true;
+  setStatus('正在加载，请稍候…');
+  try{
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    const raw = Array.isArray(data) ? data : (data.cards || []);
+    const cards = raw.map(c=>({ id:uid(), name:(c.name||'').trim(), image:c.image||'' })).filter(c=>c.name||c.image);
+    if(!cards.length){ setStatus('内容里没有找到鸟图/鸟名','error'); return; }
+    const deck = { id:uid(), name:(data.name||'未命名').trim(), date:Date.now(), url, cards };
+    decks.unshift(deck);
+    await saveDecks();
+    renderHome();
+    linkInput.value='';
+    setStatus('已加载「'+deck.name+'」：'+cards.length+' 张 ✓','ok');
+  }catch(e){
+    setStatus('加载失败：'+e.message+'（请确认链接是公开可访问的）','error');
+  }finally{
+    btnLoad.disabled=false;
+  }
+}
+
+// ---------- 渲染 ----------
+function renderHome(){
+  if(!decks.length){
+    deckList.innerHTML='<p class="empty">还没有卡片组。先在上方粘贴内容链接并「加载」。</p>';
+    return;
+  }
+  deckList.innerHTML='';
+  decks.forEach(deck=>{
+    const div=document.createElement('div');
+    div.className='deck-item';
+    const info=document.createElement('div');
+    info.className='deck-info';
+    const name=document.createElement('div');
+    name.className='deck-name'; name.textContent=deck.name;
+    const meta=document.createElement('div');
+    meta.className='deck-meta'; meta.textContent=fmtDate(deck.date)+' · '+deck.cards.length+' 张';
+    info.appendChild(name); info.appendChild(meta);
+    const study=document.createElement('button');
+    study.className='btn primary'; study.textContent='刷闪卡';
+    study.addEventListener('click',()=>startFlash(deck.cards, deck.name));
+    const del=document.createElement('button');
+    del.className='btn ghost'; del.textContent='删除';
+    del.addEventListener('click',()=>{
+      if(!confirm('删除卡片组「'+deck.name+'」？此操作不可撤销。')) return;
+      decks=decks.filter(x=>x.id!==deck.id); saveDecks(); renderHome();
+    });
+    div.appendChild(info); div.appendChild(study); div.appendChild(del);
+    deckList.appendChild(div);
+  });
+}
+
+function renderCollections(){
+  if(!collections.length){
+    collectionsList.innerHTML='<p class="empty">还没有题库。点「新建」创建，然后在闪卡里点「⭐ 收藏」把鸟加进来。</p>';
+    return;
+  }
+  collectionsList.innerHTML='';
+  collections.forEach(col=>{
+    const div=document.createElement('div');
+    div.className='collection-item';
+    const info=document.createElement('div');
+    const name=document.createElement('div'); name.className='col-name'; name.textContent=col.name;
+    const cnt=document.createElement('div'); cnt.className='col-count'; cnt.textContent=col.cards.length+' 张';
+    info.appendChild(name); info.appendChild(cnt);
+    const actions=document.createElement('div'); actions.className='col-actions';
+    const review=document.createElement('button');
+    review.className='btn primary'; review.textContent='复习';
+    review.addEventListener('click',()=>startFlash(col.cards, col.name));
+    const del=document.createElement('button');
+    del.className='btn ghost'; del.textContent='删除';
+    del.addEventListener('click',()=>{
+      if(!confirm('删除题库「'+col.name+'」？')) return;
+      collections=collections.filter(x=>x.id!==col.id); saveCollections(); renderCollections();
+    });
+    actions.appendChild(review); actions.appendChild(del);
+    div.appendChild(info); div.appendChild(actions);
+    collectionsList.appendChild(div);
+  });
+}
+
+// ---------- 闪卡 ----------
+function shuffleArr(arr){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+}
+function startFlash(cards, scope){
+  if(!cards || !cards.length){ alert('这一组还没有卡片。'); return; }
+  flashCards = cards.slice();
+  if(optShuffle.checked) shuffleArr(flashCards);
+  flashIndex=0;
+  flashScope=scope||'闪卡';
+  flashScopeEl.textContent=flashScope;
+  viewHome.classList.add('hidden');
+  viewCollections.classList.add('hidden');
+  viewFlash.classList.remove('hidden');
+  showFlash();
+}
+function currentCard(){ return flashCards[flashIndex]; }
+function showFlash(){
+  const c=currentCard();
+  flashProgress.textContent=(flashIndex+1)+' / '+flashCards.length;
+  flashName.classList.add('hidden');
+  flashImg.src = c.image || '';
+}
+
+// ---------- 收藏 ----------
+function openCollectModal(card){
+  renderCollectList(card);
+  modalCollect.classList.remove('hidden');
+}
+function renderCollectList(card){
+  collectList.innerHTML='';
+  if(!collections.length){ collectList.innerHTML='<p class="empty">还没有题库，在下方新建一个。</p>'; return; }
+  collections.forEach(col=>{
+    const has = col.cards.some(c=>c.name===card.name);
+    const row=document.createElement('div');
+    row.className='collect-item'+(has?' active':'');
+    const name=document.createElement('span'); name.textContent=col.name+'（'+col.cards.length+'）';
+    const mark=document.createElement('span'); mark.className='mark'; mark.textContent=has?'✓ 已收藏':'＋ 收藏';
+    row.appendChild(name); row.appendChild(mark);
+    row.addEventListener('click',()=>{
+      if(has){ col.cards=col.cards.filter(c=>c.name!==card.name); }
+      else{ col.cards.push({id:uid(), name:card.name, image:card.image}); }
+      saveCollections(); renderCollectList(card);
+    });
+    collectList.appendChild(row);
+  });
+}
+
+// ---------- 事件 ----------
+btnLoad.addEventListener('click', loadContent);
+btnCollections.addEventListener('click',()=>{ renderCollections(); viewHome.classList.add('hidden'); viewCollections.classList.remove('hidden'); });
+btnCollectionsBack.addEventListener('click',()=>{ viewCollections.classList.add('hidden'); viewHome.classList.remove('hidden'); });
+btnNewCollection.addEventListener('click',()=>{
+  const name=newCollectionName.value.trim();
+  if(!name){ alert('请输入题库名称'); return; }
+  collections.push({id:uid(), name, cards:[]});
+  saveCollections(); newCollectionName.value=''; renderCollections();
+});
+btnBack.addEventListener('click',()=>{ viewFlash.classList.add('hidden'); viewHome.classList.remove('hidden'); });
+btnShow.addEventListener('click',()=>{
+  flashName.textContent = currentCard().name || '（未填写鸟名）';
+  flashName.classList.remove('hidden');
+});
+btnNext.addEventListener('click',()=>{ flashIndex=(flashIndex+1)%flashCards.length; showFlash(); });
+btnFav.addEventListener('click',()=>openCollectModal(currentCard()));
+btnCollectClose.addEventListener('click',()=>modalCollect.classList.add('hidden'));
+btnCollectNew.addEventListener('click',()=>{
+  const name=collectNewName.value.trim();
+  if(!name){ alert('请输入题库名称'); return; }
+  const col={id:uid(), name, cards:[]};
+  const c=currentCard();
+  col.cards.push({id:uid(), name:c.name, image:c.image});
+  collections.push(col); saveCollections();
+  collectNewName.value=''; renderCollectList(c);
+});
+
+// ---------- 启动 ----------
+(async function init(){
+  try{ decks = await dbGetAll('decks'); }catch(e){}
+  try{ collections = await dbGetAll('collections'); }catch(e){}
+  renderHome();
+})();
+})();
+</script>
+</body>
+</html>
