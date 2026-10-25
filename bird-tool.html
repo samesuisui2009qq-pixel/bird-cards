@@ -45,6 +45,15 @@
   .card .cn { font-size:12px; padding:6px 8px 2px; font-weight:600; line-height:1.4; }
   .card .meta { font-size:10px; color:var(--muted); padding:0 8px 8px; }
   .legend { font-size:12px; color:var(--muted); margin:8px 0; }
+  .card .head { display:flex; align-items:center; gap:4px; padding:6px 8px 2px; }
+  .card .head .st { flex-shrink:0; }
+  .card input.name { width:100%; border:1px solid transparent; border-radius:6px; padding:4px 6px; font-size:12px; font-weight:600; background:transparent; }
+  .card input.name:hover { border-color:var(--border); background:#fff; }
+  .card input.name:focus { border-color:var(--brand); background:#fff; outline:none; }
+  .card .del { margin-left:auto; border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:14px; padding:0 4px; }
+  .card .del:hover { color:var(--miss); }
+  .card .raw { font-size:9px; color:var(--muted); padding:0 8px 6px; word-break:break-all; }
+  .card.removed { display:none; }
 </style>
 </head>
 <body>
@@ -76,21 +85,27 @@
   </div>
 
   <div class="step">
-    <h2><span class="num">3</span>命名并生成</h2>
+    <h2><span class="num">3</span>命名并抓取</h2>
     <div class="row">
       <input type="text" id="nameInput" placeholder="合并后的文件名，如：海南：越冬">
-      <button id="btnGo" class="primary" disabled>⚙ 生成 JSON</button>
+      <button id="btnParse" class="primary" disabled>🔍 抓取</button>
     </div>
-    <div class="hint">勾选多个来源时，会合并成这一个文件。</div>
+    <div class="hint">勾选多个来源时，会合并成这一个文件。抓取后可人工核对、改鸟名、删错误卡片。</div>
     <div id="status"></div>
   </div>
 
-  <div class="step" id="result">
-    <h2>生成结果</h2>
+  <div class="step" id="reviewStep" style="display:none">
+    <h2><span class="num">4</span>人工核对 <span id="reviewHint" class="hint" style="margin-left:8px"></span></h2>
     <div class="summary" id="summary"></div>
-    <div class="legend">✅ 名录一致　🟠 名录近似（保留原文用字）　🔴 名录未收录（保留原文，请自行确认）</div>
+    <div class="legend">点鸟名可直接修改；点「✕」删除这张卡。✅ 名录一致　🟠 名录近似　🔴 名录未收录</div>
+    <div class="row" style="margin-bottom:10px">
+      <button id="btnDownload" class="primary">⬇ 下载 JSON</button>
+      <button id="btnReparse">↻ 重新抓取</button>
+      <button id="btnRemoveAll">🗑 全部删除</button>
+    </div>
     <div class="cards" id="cards"></div>
   </div>
+
 
 </div>
 
@@ -161,7 +176,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const box = $('srcList');
     if (!srcs.length) {
       box.innerHTML = '<div class="hint">还没检测到网页或 Word 文档。</div>';
-      $('btnGo').disabled = true;
+      $('btnParse').disabled = true;
       return;
     }
     box.innerHTML = srcs.map((s, i) => `
@@ -187,7 +202,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
 
   function updateGo() {
-    $('btnGo').disabled = selectedSrcs().length === 0;
+    $('btnParse').disabled = selectedSrcs().length === 0;
   }
 
   function updateName() {
@@ -206,7 +221,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   $('btnClear').onclick = () => {
     folderFiles = []; map.clear(); baseMap.clear(); srcs.length = 0;
     $('srcList').innerHTML = ''; $('nameInput').value = ''; $('nameInput').dataset.user = '';
-    $('btnGo').disabled = true; $('status').textContent = ''; $('result').style.display = 'none';
+    $('btnParse').disabled = true; $('status').textContent = '';
+    $('reviewStep').style.display = 'none';
+    reviewCards = []; reviewMarks = [];
   };
 
   document.querySelectorAll('#tagBox input[name=tag]').forEach(r => {
@@ -351,8 +368,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const cut = cutPrefix(p);
     if (cut) return { name: cut, status: 'ok', matched: cut };
 
+    // 原文包含名录名（描述前缀 + 鸟名），用名录名本体
+    // 例：特有种海南山鹧鸪 → 海南山鹧鸪
     const sub = findSub(p);
-    if (sub) return { name: p, status: 'alias', matched: sub };
+    if (sub) {
+      // 名录名是原文的子串 → 剥掉描述性前后缀，取名录名
+      if (p.includes(sub)) return { name: sub, status: 'ok', matched: sub };
+      // 原文是名录名的子串（异体/缩写）→ 保留原文，标近似
+      return { name: p, status: 'alias', matched: sub };
+    }
 
     return { name: p, status: 'miss', matched: null };
   }
@@ -481,6 +505,28 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return btoa(bin);
   }
 
+  // 辨识点图：全分辨率 + 无损，放大后才清晰
+  // 在无损 WebP 和 PNG 里挑体积小的，像素完全一致
+  function fileToLossless(file) {
+    return file.arrayBuffer().then(buf =>
+      createImageBitmap(new Blob([buf])).then(bmp => {
+        const c = document.createElement('canvas');
+        c.width = bmp.width; c.height = bmp.height;   // 不缩放
+        const ctx = c.getContext('2d');
+        ctx.drawImage(bmp, 0, 0);
+        bmp.close && bmp.close();
+        return Promise.all([
+          new Promise(r => c.toBlob(r, 'image/webp', 1.0)),
+          new Promise(r => c.toBlob(r, 'image/png')),
+        ]).then(([w, p]) => {
+          let blob = w, fmt = 'webp';
+          if (!w || (p && p.size < w.size)) { blob = p; fmt = 'png'; }
+          return blob.arrayBuffer().then(ab => ({ buf: ab, fmt, size: blob.size }));
+        });
+      })
+    );
+  }
+
   // ============ 文章转换 ============
   async function convertHtml(srcFile) {
     const text = await srcFile.text();
@@ -524,15 +570,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   function tag(n) { return n.split(':').pop(); }
 
   async function convertDocx(file) {
-    if (typeof JSZip === 'undefined') return { cards: [], notes: ['未加载 JSZip，无法解析 Word'] };
+    if (typeof JSZip === 'undefined') return { cards: [], marks: [], notes: ['未加载 JSZip，无法解析 Word'] };
     const zip = await JSZip.loadAsync(await file.arrayBuffer());
     const docXml = await zip.file('word/document.xml').async('string');
     const relsXml = await zip.file('word/_rels/document.xml.rels').async('string');
     const rels = new Map();
-    (new DOMParser().parseFromString(relsXml, 'application/xml').getElementsByTagName('Relationship')).forEach? 
-      Array.from(new DOMParser().parseFromString(relsXml, 'application/xml').getElementsByTagName('Relationship')).forEach(el => rels.set(el.getAttribute('Id'), el.getAttribute('Target'))) : null;
+    Array.from(new DOMParser().parseFromString(relsXml, 'application/xml').getElementsByTagName('Relationship')).forEach(el => rels.set(el.getAttribute('Id'), el.getAttribute('Target')));
     const doc = new DOMParser().parseFromString(docXml, 'application/xml');
-    const cards = [], notes = [];
+    const cards = [], marks = [], notes = [];
     // 遍历 body 直接子节点顺序：drawing 后紧跟文字
     const body = doc.getElementsByTagNameNS(NS.w, 'body')[0] || doc.getElementsByTagName('w:body')[0] || doc.body;
     const kids = body ? Array.from(body.childNodes) : [];
@@ -541,7 +586,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (p.nodeType !== 1 || tag(p.nodeName) !== 'p') continue;
       const draw = p.getElementsByTagNameNS(NS.a, 'blip')[0] || p.getElementsByTagName('a:blip')[0];
       if (!draw) continue;
-      const rid = draw.getAttribute('r:embed') || draw.getAttribute('embed') || draw.getAttributeNS(NS.r, 'embed');
+      const rid = draw.getAttributeNS(NS.r, 'embed') || draw.getAttribute('r:embed') || draw.getAttribute('embed');
       const target = rels.get(rid);
       if (!target) continue;
       const mediaPath = 'word/' + target.replace(/^word\//, '');
@@ -554,71 +599,142 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (!data) continue;
       const sz = await (async () => { const url = URL.createObjectURL(new Blob([data])); return new Promise(res => { const im = new Image(); im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => res(null); im.src = url; }); })();
       if (!sz || sz.w < 220 || sz.h < 220) continue;
+
+      // 辨识点图：标题含「辨识点」→ 无损、全分辨率，进 marks
+      if (/辨识点/.test(label)) {
+        const lf = await fileToLossless(new Blob([data]));
+        marks.push('data:image/' + lf.fmt + ';base64,' + bufToB64(lf.buf));
+        notes.push(`[${i}] 辨识点图 ${sz.w}x${sz.h} 无损${lf.fmt} -> ${(lf.buf.byteLength / 1024).toFixed(0)} KB`);
+        continue;
+      }
+
       const r = extractNames(label);
-      if (!r) continue;
+      if (!r) { notes.push(`[${i}] 图注「${label}」无鸟名，跳过`); continue; }
       const webp = await new Promise(res => createImageBitmap(new Blob([data])).then(bmp => { const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0); return new Promise(r2 => c.toBlob(r2, 'image/webp', 0.82)); }).then(b => b.arrayBuffer()).then(res));
       const card = { name: r.name, image: 'data:image/webp;base64,' + bufToB64(webp) };
       if (r.rec) { if (r.rec.e) card.en = r.rec.e; if (r.rec.s) card.sci = r.rec.s; if (r.rec.f) card.fam = r.rec.f; }
       cards.push({ card, status: r.status, raw: label });
     }
-    return { cards, notes };
+    return { cards, marks, notes };
   }
 
-  // ============ 生成 ============
-  $('btnGo').onclick = async () => {
+  // ============ 抓取 → 人工核对 → 下载 ============
+  // 核对区的状态：cards 数组（每个含 card/status/raw/from），marks 数组
+  let reviewCards = [];   // [{ card, status, raw, from, removed }]
+  let reviewMarks = [];
+  let currentTag = '本地鸟种';
+  let currentName = '';
+
+  function renderReview() {
+    const nOk = reviewCards.filter(c => !c.removed && c.status === 'ok').length;
+    const nAlias = reviewCards.filter(c => !c.removed && c.status === 'alias').length;
+    const nMiss = reviewCards.filter(c => !c.removed && c.status === 'miss').length;
+    const nKept = reviewCards.filter(c => !c.removed).length;
+    $('summary').innerHTML =
+      `<div><b>${nKept}</b> / ${reviewCards.length} 张卡片</div>` +
+      (reviewMarks.length ? `<div><b class="badge b-ok">${reviewMarks.length}</b> 张辨识点</div>` : '') +
+      `<div><b class="badge b-ok">${nOk}</b> 名录一致</div>` +
+      `<div><b class="badge b-alias">${nAlias}</b> 名录近似</div>` +
+      `<div><b class="badge b-miss">${nMiss}</b> 名录未收录</div>`;
+    $('reviewHint').textContent = '共 ' + nKept + ' 张，可改鸟名、删错误卡片';
+    $('cards').innerHTML = reviewCards.map((c, i) => {
+      if (c.removed) return '';
+      const b = c.status === 'ok' ? 'b-ok' : c.status === 'alias' ? 'b-alias' : 'b-miss';
+      const meta = [c.card.en, c.card.fam].filter(Boolean).join(' · ');
+      return `<div class="card" data-i="${i}">
+        <img src="${c.card.image}">
+        <div class="head"><span class="st"><span class="badge ${b}">${{ok:'✅',alias:'🟠',miss:'🔴'}[c.status]}</span></span>
+          <input class="name" value="${esc(c.card.name)}" data-i="${i}">
+          <button class="del" data-i="${i}" title="删除">✕</button>
+        </div>
+        <div class="meta">${esc(meta)}${c.from ? ' · ' + esc(c.from) : ''}</div>
+        <div class="raw">原文：${esc(c.raw)}</div>
+      </div>`;
+    }).join('');
+    // 绑定：改鸟名 + 删除
+    $('cards').querySelectorAll('input.name').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const i = +inp.dataset.i;
+        reviewCards[i].card.name = inp.value.trim() || reviewCards[i].card.name;
+        reviewCards[i].status = 'ok';  // 人工改过 → 视为已确认
+      });
+    });
+    $('cards').querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = +btn.dataset.i;
+        reviewCards[i].removed = true;
+        renderReview();
+      });
+    });
+  }
+
+  function currentTagValue() {
+    return (document.querySelector('#tagBox input[name=tag]:checked') || {}).value || '本地鸟种';
+  }
+
+  $('btnParse').onclick = async () => {
     const sel = selectedSrcs();
     if (!sel.length) return;
-    const tag = (document.querySelector('#tagBox input[name=tag]:checked') || {}).value || '本地鸟种';
-    const gname = $('nameInput').value.trim() || sel[0].name;
+    currentTag = currentTagValue();
+    currentName = $('nameInput').value.trim() || sel[0].name;
     const st = $('status');
-    st.className = ''; st.textContent = '处理中…';
+    st.className = ''; st.textContent = '抓取中…';
 
     try {
-      let allCards = [];
+      reviewCards = [];
+      reviewMarks = [];
       for (const s of sel) {
-        st.textContent = `正在解析「${s.name}」…`;
+        st.textContent = `正在抓取「${s.name}」…`;
         const res = s.kind === 'html' ? await convertHtml(s.file) : await convertDocx(s.file);
-        for (const c of res.cards) allCards.push({ ...c, from: s.name });
+        for (const c of res.cards) reviewCards.push({ ...c, from: s.name, removed: false });
+        for (const m of (res.marks || [])) reviewMarks.push(m);
       }
-
-      const obj = { name: gname, type: tag, cards: allCards.map(c => c.card) };
-      const json = JSON.stringify(obj);
-
-      // 下载
-      const safe = gname.replace(/[<>:"/\\|?*]/g, '-');
-      const blob = new Blob([json], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = safe + '.json';
-      a.click();
-      URL.revokeObjectURL(a.href);
-
-      // 预览
-      const nOk = allCards.filter(c => c.status === 'ok').length;
-      const nAlias = allCards.filter(c => c.status === 'alias').length;
-      const nMiss = allCards.filter(c => c.status === 'miss').length;
-      $('summary').innerHTML =
-        `<div><b>${allCards.length}</b> 张卡片</div>` +
-        `<div><b class="badge b-ok">${nOk}</b> 名录一致</div>` +
-        `<div><b class="badge b-alias">${nAlias}</b> 名录近似</div>` +
-        `<div><b class="badge b-miss">${nMiss}</b> 名录未收录</div>`;
-      $('cards').innerHTML = allCards.map(c => {
-        const b = c.status === 'ok' ? 'b-ok' : c.status === 'alias' ? 'b-alias' : 'b-miss';
-        const meta = [c.card.en, c.card.fam].filter(Boolean).join(' · ');
-        return `<div class="card"><img src="${c.card.image}"><div class="cn">${esc(c.card.name)} <span class="badge ${b}">${{ok:'✅',alias:'🟠',miss:'🔴'}[c.status]}</span></div><div class="meta">${esc(meta)}</div></div>`;
-      }).join('');
-      $('result').style.display = 'block';
-      st.textContent = `已生成 ${safe}.json（${(blob.size / 1048576).toFixed(2)} MB），下载到浏览器默认下载目录，拖进 GitHub 即可。`;
+      $('reviewStep').style.display = 'block';
+      renderReview();
+      st.textContent = `抓取完成：${reviewCards.length} 张卡片${reviewMarks.length ? '，' + reviewMarks.length + ' 张辨识点' : ''}。请在下面核对、修改、删除。`;
+      $('reviewStep').scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
       st.className = 'err';
       st.textContent = '出错：' + (e && e.message ? e.message : e);
     }
   };
 
+  $('btnDownload').onclick = () => {
+    const kept = reviewCards.filter(c => !c.removed);
+    // 每张卡：只保留 name / image / en / sci / fam
+    const cards = kept.map(c => {
+      const o = { name: c.card.name, image: c.card.image };
+      if (c.card.en) o.en = c.card.en;
+      if (c.card.sci) o.sci = c.card.sci;
+      if (c.card.fam) o.fam = c.card.fam;
+      return o;
+    });
+    // marks 必须排在 cards 前面
+    const obj = { name: currentName, type: currentTag };
+    if (reviewMarks.length) obj.marks = reviewMarks;
+    obj.cards = cards;
+    const json = JSON.stringify(obj);
+    const safe = currentName.replace(/[<>:"/\\|?*]/g, '-');
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = safe + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    $('status').textContent = `已下载 ${safe}.json（${kept.length} 张卡片${reviewMarks.length ? '，' + reviewMarks.length + ' 张辨识点' : ''}，${(blob.size / 1048576).toFixed(2)} MB），拖进 GitHub content/ 目录即可。`;
+  };
+
+  $('btnReparse').onclick = () => $('btnParse').click();
+  $('btnRemoveAll').onclick = () => {
+    reviewCards.forEach(c => c.removed = true);
+    renderReview();
+  };
+
   // ============ 测试钩子（供自动化验证，不影响正常使用） ============
   window.__test = {
     addFiles: (files) => { addFiles(files); return srcs.length; },
     convertHtml: convertHtml,
+    convertDocx: convertDocx,
     extractNames: extractNames,
   };
 })();
