@@ -54,6 +54,17 @@
   .card .del:hover { color:var(--miss); }
   .card .raw { font-size:9px; color:var(--muted); padding:0 8px 6px; word-break:break-all; }
   .card.removed { display:none; }
+  .marks-block { margin-top:16px; padding-top:14px; border-top:1px solid var(--border); }
+  .marks-block .mb-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .marks-block .mb-head .t { font-size:14px; font-weight:600; }
+  .marks-block .mb-head .c { font-size:12px; color:var(--muted); }
+  .marks-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+  .mark-item { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:#fff; }
+  .mark-item img { width:100%; height:150px; object-fit:contain; display:block; background:#111; cursor:zoom-in; }
+  .mark-item .foot { display:flex; align-items:center; gap:6px; padding:6px 8px; }
+  .mark-item .foot .info { font-size:10px; color:var(--muted); flex:1; }
+  .mark-item .foot .del { border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:14px; padding:0 4px; }
+  .mark-item .foot .del:hover { color:var(--miss); }
 </style>
 </head>
 <body>
@@ -104,6 +115,16 @@
       <button id="btnRemoveAll">🗑 全部删除</button>
     </div>
     <div class="cards" id="cards"></div>
+    <div class="marks-block" id="marksBlock" style="display:none">
+      <div class="mb-head">
+        <span class="t">🔍 辨识点</span>
+        <span class="c" id="marksCount"></span>
+        <button id="btnAddMark" style="margin-left:auto">＋ 上传辨识点图</button>
+        <input type="file" id="inMark" multiple accept="image/*" hidden>
+      </div>
+      <div class="marks-grid" id="marksGrid"></div>
+      <div class="hint">辨识点图按全分辨率、无损保存（放大不失真）。可本地上传补充，也可点「✕」删除。</div>
+    </div>
   </div>
 
 
@@ -600,8 +621,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       const sz = await (async () => { const url = URL.createObjectURL(new Blob([data])); return new Promise(res => { const im = new Image(); im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => res(null); im.src = url; }); })();
       if (!sz || sz.w < 220 || sz.h < 220) continue;
 
-      // 辨识点图：标题含「辨识点」→ 无损、全分辨率，进 marks
-      if (/辨识点/.test(label)) {
+      // 辨识点图：标题含「辨识点」或「辨识图」→ 无损、全分辨率，进 marks
+      if (/辨识点|辨识图/.test(label)) {
         const lf = await fileToLossless(new Blob([data]));
         marks.push('data:image/' + lf.fmt + ';base64,' + bufToB64(lf.buf));
         notes.push(`[${i}] 辨识点图 ${sz.w}x${sz.h} 无损${lf.fmt} -> ${(lf.buf.byteLength / 1024).toFixed(0)} KB`);
@@ -666,7 +687,57 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         renderReview();
       });
     });
+    renderMarks();
   }
+
+  // 辨识点栏：有则显示，无则隐藏
+  function renderMarks() {
+    const block = $('marksBlock');
+    if (!reviewMarks.length) {
+      block.style.display = 'none';
+      return;
+    }
+    block.style.display = 'block';
+    $('marksCount').textContent = reviewMarks.length + ' 张';
+    $('marksGrid').innerHTML = reviewMarks.map((m, i) => {
+      const kb = m.startsWith('data:') ? '' : (m.length / 1024).toFixed(0) + ' KB';
+      return `<div class="mark-item" data-i="${i}">
+        <img src="${m}">
+        <div class="foot">
+          <span class="info">第 ${i + 1} 张${kb ? ' · ' + kb : ''}</span>
+          <button class="del" data-i="${i}" title="删除">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+    $('marksGrid').querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        reviewMarks.splice(+btn.dataset.i, 1);
+        renderMarks();
+        renderReview();
+      });
+    });
+  }
+
+  // 本地上传辨识点图（无损压缩）
+  $('btnAddMark').onclick = () => $('inMark').click();
+  $('inMark').onchange = async e => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (!files.length) return;
+    $('status').textContent = '正在压缩辨识点图…';
+    for (const f of files) {
+      try {
+        const lf = await fileToLossless(f);
+        reviewMarks.push('data:image/' + lf.fmt + ';base64,' + bufToB64(lf.buf));
+      } catch (err) {
+        $('status').textContent = '出错：' + (err && err.message ? err.message : err);
+        return;
+      }
+    }
+    renderMarks();
+    renderReview();
+    $('status').textContent = `已添加 ${files.length} 张辨识点图。`;
+  };
 
   function currentTagValue() {
     return (document.querySelector('#tagBox input[name=tag]:checked') || {}).value || '本地鸟种';
