@@ -28,11 +28,13 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 .hero p{margin:0;color:rgba(248,241,225,.7);font-size:13px}
 
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.card summary.field-label{cursor:pointer;list-style:none}
+.card summary.field-label::-webkit-details-marker{display:none}
 .field-label{font-weight:600;font-size:14px;margin-bottom:8px}
 .hint{color:var(--muted);font-weight:400;font-size:12px}
 
 .row{display:flex;gap:10px;align-items:center}
-.row input[type=url],.row input[type=text]{flex:1;min-width:0}
+.row input[type=text]{flex:1;min-width:0}
 input{padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;width:100%}
 input:focus{outline:2px solid var(--green);border-color:transparent}
 button{font:inherit;cursor:pointer}
@@ -49,10 +51,21 @@ button{font:inherit;cursor:pointer}
 .empty{color:var(--muted);text-align:center;padding:18px 0}
 
 .deck-list{display:flex;flex-direction:column;gap:10px;margin-top:4px}
-.deck-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.deck-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.deck-item.sel{border-color:var(--green);background:#f0f7f1}
 .deck-info{flex:1;min-width:0}
 .deck-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .deck-meta{color:var(--muted);font-size:12px;margin-top:2px}
+.deck-check{width:20px;height:20px;flex:none;accent-color:var(--green);cursor:pointer}
+.deck-badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;margin-left:6px;
+  font-weight:500;vertical-align:2px;white-space:nowrap}
+.badge-ident{background:#e8f0fb;color:#2f5fa8}
+.badge-region{background:#eaf4e8;color:#3f7d46}
+.deck-badge.badge-other{background:#f0f0ec;color:var(--muted)}
+.count-line{font-size:12px;color:var(--muted);margin:8px 0 2px}
+.restore-box{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
+.restore-box .deck-item{padding:8px 12px;background:#fbfcf9}
+.restore-head{font-size:12px;color:var(--muted);margin-bottom:6px}
 
 .opt{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;white-space:nowrap}
 .opt input{width:auto;flex:none}
@@ -69,6 +82,13 @@ button{font:inherit;cursor:pointer}
 .col-count{color:var(--muted);font-size:12px}
 .col-actions{display:flex;gap:8px}
 
+.multi-bar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;align-items:center;gap:10px;
+  padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.97);border-top:1px solid var(--border);box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+.multi-bar .m-info{flex:1;font-size:14px;font-weight:600}
+.multi-bar .m-info small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+body.has-bar .view{padding-bottom:96px}
+
 .modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center}
 .modal-mask{position:absolute;inset:0;background:rgba(0,0,0,.45)}
 .modal-box{position:relative;background:var(--card);border-radius:14px;padding:18px;width:90%;max-width:420px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,.2)}
@@ -78,41 +98,103 @@ button{font:inherit;cursor:pointer}
 .collect-item.active{border-color:var(--green);background:#f0f7f1}
 .collect-item .mark{color:var(--green);font-size:13px;white-space:nowrap}
 .collect-item:not(.active) .mark{color:var(--muted)}
+
+.mark-btn{background:#f3ecdf;color:#8a5a20}
+.mark-btn:active{background:#e8dcc8}
+.marks-group{font-size:12px;font-weight:600;color:var(--muted);margin-top:4px}
+
+/* 辨识点：与闪卡同页面，竖向滚动 */
+.marks-stage{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.marks-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 12px;border-bottom:1px solid var(--border);background:#fbfdf9;position:sticky;top:0;z-index:2}
+.marks-count{font-size:13px;font-weight:600;color:var(--muted)}
+.marks-body{display:flex;flex-direction:column;gap:14px;padding:12px}
+.marks-body .empty{padding:18px 0}
+.marks-figure{position:relative}
+.marks-figure img{width:100%;height:auto;display:block;border-radius:10px;background:#0f1410;cursor:zoom-in}
+.marks-cap{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.62);color:#fff;font-size:11px;
+  padding:3px 8px;border-radius:20px;pointer-events:none}
+.marks-tip{font-size:11px;color:var(--muted);text-align:center;margin:0;padding:0 0 12px}
+
+/* 放大查看 */
+.zoom-view{position:fixed;inset:0;z-index:60;background:rgba(10,14,11,.96);display:flex;flex-direction:column}
+.zoom-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top))}
+.zoom-bar .btn{background:rgba(255,255,255,.14);color:#fff;border-color:transparent}
+.zoom-bar .btn:active{background:rgba(255,255,255,.24)}
+.zoom-label{color:#fff;font-size:13px;min-width:56px;text-align:center}
+.zoom-canvas{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none}
+.zoom-canvas img{max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;
+  will-change:transform;user-select:none;-webkit-user-drag:none}
+.zoom-hint{color:rgba(255,255,255,.55);font-size:11px;text-align:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
+
+.gh-link{font-size:11px;color:var(--muted);text-decoration:none;margin-top:2px;display:inline-block}
+.gh-link:hover{color:var(--accent);text-decoration:underline}
+.gh-upload{display:inline-block;margin-top:8px;font-size:12px;color:var(--accent);text-decoration:none}
+.gh-upload:hover{text-decoration:underline}
+.diag-box{margin-top:10px;font-size:12px;overflow-x:auto}
+.diag-head,.diag-row{display:grid;grid-template-columns:2.2fr 2fr 1fr .6fr .6fr;gap:6px;padding:5px 6px;align-items:start}
+.diag-head{color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)}
+.diag-row{border-bottom:1px solid #f0f2ee}
+.diag-row.bad{background:#fff6f4}
+.diag-row span{overflow-wrap:anywhere}
+.diag-note{color:#c0503a;padding:3px 6px 7px;font-size:11px}
+.diag-foot{margin-top:10px;color:var(--muted);font-size:11px}
+.diag-foot a{color:var(--accent);text-decoration:none}
 </style>
 </head>
 <body>
 
-<!-- 首页：加载链接 + 历史记录 -->
+<!-- 首页 -->
 <div id="view-home" class="view">
   <header class="topbar">
     <h1>🐦 鸟类预习</h1>
-    <span class="sub">手机 / 电脑通用</span>
+    <span class="sub" id="sync-sub">共享卡片组</span>
   </header>
 
   <section class="hero">
-    <h2>加载内容</h2>
-    <p>粘贴一个「内容链接」，加载一组鸟图+鸟名，每个链接是一组独立卡片。</p>
+    <h2>共享卡片组</h2>
+    <p>内容来自 GitHub 仓库的 content/ 目录。任何人在任何设备打开，都会看到最新分组。</p>
+    <a class="gh-upload" id="gh-upload" target="_blank" rel="noopener">📤 上传新卡片组（打开 GitHub 上传页）</a>
   </section>
 
   <section class="card">
-    <label class="field-label">内容链接</label>
-    <div class="row">
-      <input id="link-input" type="url" placeholder="https://raw.githubusercontent.com/…/内容.json" />
-      <button id="btn-load" class="btn primary">加载</button>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap">
+      <span class="field-label" style="margin:0">卡片组</span>
+      <div class="row" style="gap:8px">
+        <label class="opt"><input type="checkbox" id="opt-shuffle" /> 乱序</label>
+        <button id="btn-refresh" class="btn ghost">刷新列表</button>
+      </div>
     </div>
+    <div class="row" style="margin-top:10px">
+      <input id="search-input" type="text" placeholder="搜索卡片组，如：海南" autocomplete="off" />
+      <button id="btn-clear-search" class="btn ghost">清空</button>
+    </div>
+    <div id="list-count" class="count-line"></div>
+    <div id="deck-list" class="deck-list">
+      <p class="empty">正在读取 GitHub 目录…</p>
+    </div>
+    <div id="restore-box" class="restore-box hidden"></div>
     <div id="load-status" class="status"></div>
   </section>
 
+  <details class="card" id="diag-card">
+    <summary class="field-label" style="margin:0">📋 同步诊断 <span id="diag-sum" class="hint"></span></summary>
+    <div id="diag-box" class="diag-box"></div>
+  </details>
+
   <section class="card">
     <div class="row" style="justify-content:space-between">
-      <span class="field-label" style="margin:0">历史记录</span>
-      <label class="opt"><input type="checkbox" id="opt-shuffle" /> 乱序</label>
-      <button id="btn-collections" class="btn">📁 我的题库</button>
-    </div>
-    <div id="deck-list" class="deck-list">
-      <p class="empty">还没有卡片组。先在上方粘贴内容链接并「加载」。</p>
+      <span class="field-label" style="margin:0">📁 我的题库 <span id="col-sum" class="hint"></span></span>
+      <button id="btn-collections" class="btn">打开</button>
     </div>
   </section>
+</div>
+
+<!-- 多选合并刷闪卡：底部操作条 -->
+<div id="multi-bar" class="multi-bar hidden">
+  <div class="m-info" id="multi-info">已选 0 组</div>
+  <button id="btn-clear" class="btn ghost">清空</button>
+  <button id="btn-multi" class="btn primary" disabled>合并刷闪卡</button>
 </div>
 
 <!-- 闪卡视图 -->
@@ -123,18 +205,44 @@ button{font:inherit;cursor:pointer}
     <span id="flash-scope" class="sub">闪卡</span>
   </header>
   <section class="flash-stage">
-    <div class="flash-card">
+    <div id="flash-card-box" class="flash-card">
       <img id="flash-img" alt="鸟图" />
       <div id="flash-name" class="flash-name hidden">——</div>
     </div>
-    <div class="row flash-controls">
+    <!-- 辨识点：与闪卡同页面，可滚动查看 -->
+    <div id="marks-stage" class="marks-stage hidden">
+      <div class="marks-bar">
+        <span id="marks-count" class="marks-count">辨识点</span>
+        <button id="btn-marks-back" class="btn ghost">← 返回闪卡</button>
+      </div>
+      <div id="marks-body" class="marks-body">
+        <p class="empty">正在加载…</p>
+      </div>
+      <p class="marks-tip">点任意一张图可放大查看</p>
+    </div>
+    <div class="row flash-controls" id="flash-card-controls">
       <button id="btn-show" class="btn primary big">显示鸟种名称</button>
       <button id="btn-next" class="btn big">下一个</button>
     </div>
     <div class="row flash-controls">
       <button id="btn-fav" class="btn big">⭐ 收藏</button>
+      <button id="btn-marks" class="btn big mark-btn hidden">🔍 辨识点</button>
     </div>
   </section>
+</div>
+
+<!-- 放大查看辨识点 -->
+<div id="zoom-view" class="zoom-view hidden">
+  <div class="zoom-bar">
+    <button id="btn-zoom-prev" class="btn ghost">‹</button>
+    <span id="zoom-label" class="zoom-label">1 / 1</span>
+    <button id="btn-zoom-next" class="btn ghost">›</button>
+    <button id="btn-zoom-close" class="btn ghost">✕ 关闭</button>
+  </div>
+  <div id="zoom-canvas" class="zoom-canvas">
+    <img id="zoom-img" alt="放大" />
+  </div>
+  <div class="zoom-hint">双击放大 · 双指缩放 · 拖动查看</div>
 </div>
 
 <!-- 题库视图 -->
@@ -172,54 +280,68 @@ button{font:inherit;cursor:pointer}
 (function(){
 'use strict';
 
+// ---------- 仓库配置（换仓库只改这里） ----------
+const CFG = {
+  owner: 'samesuisui2009qq-pixel',
+  repo:  'bird-cards',
+  ref:   'main',
+  dir:   'content',
+  listTTL: 5 * 60 * 1000,     // 目录列表本地缓存 5 分钟
+  cacheLimit: 80 * 1024 * 1024  // 本机卡片缓存上限 80MB
+};
+const API_LIST = 'https://api.github.com/repos/'+CFG.owner+'/'+CFG.repo+'/contents/'+CFG.dir+'?ref='+CFG.ref;
+const LS_LIST = 'birdcards.list.v2', LS_NAME = 'birdcards.names.v2', LS_HIDDEN = 'birdcards.hidden.v2';
+
 // ---------- 状态 ----------
-let decks = [];          // [{id,name,date,url,cards:[{id,name,image}]}]
-let collections = [];    // [{id,name,cards:[{id,name,image}]}]
-let flashCards = [];     // 当前正在刷的卡片
-let flashIndex = 0;
-let flashScope = '';
+let decks = [];          // 本机缓存的卡片组 [{id,name,date,url,cards}]
+let remote = [];         // GitHub 目录列表 [{path,file,size,url,_name}]
+let collections = [];    // 我的题库
+let selected = new Set();// 选中的分组 path
+let hidden = new Set();  // 用户在本机删除（隐藏）的分组 path
+let flashCards = [], flashIndex = 0, flashScope = '', flashDecks = [];
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
-const viewHome = $('view-home');
-const viewFlash = $('view-flash');
-const viewCollections = $('view-collections');
-const linkInput = $('link-input');
-const btnLoad = $('btn-load');
-const loadStatus = $('load-status');
-const deckList = $('deck-list');
-const optShuffle = $('opt-shuffle');
-const btnCollections = $('btn-collections');
-const btnCollectionsBack = $('btn-collections-back');
-const newCollectionName = $('new-collection-name');
-const btnNewCollection = $('btn-new-collection');
-const collectionsList = $('collections-list');
-const btnBack = $('btn-back');
-const flashImg = $('flash-img');
-const flashName = $('flash-name');
-const flashProgress = $('flash-progress');
-const flashScopeEl = $('flash-scope');
-const btnShow = $('btn-show');
-const btnNext = $('btn-next');
-const btnFav = $('btn-fav');
-const modalCollect = $('modal-collect');
-const collectList = $('collect-list');
-const collectNewName = $('collect-new-name');
-const btnCollectNew = $('btn-collect-new');
-const btnCollectClose = $('btn-collect-close');
+const viewHome=$('view-home'), viewFlash=$('view-flash'), viewCollections=$('view-collections');
+const deckList=$('deck-list'), loadStatus=$('load-status'), syncSub=$('sync-sub');
+const optShuffle=$('opt-shuffle'), btnRefresh=$('btn-refresh');
+const searchInput=$('search-input'), btnClearSearch=$('btn-clear-search'), listCount=$('list-count');
+const multiBar=$('multi-bar'), multiInfo=$('multi-info'), btnMulti=$('btn-multi'), btnClear=$('btn-clear');
+const btnCollections=$('btn-collections'), btnCollectionsBack=$('btn-collections-back');
+const newCollectionName=$('new-collection-name'), btnNewCollection=$('btn-new-collection');
+const collectionsList=$('collections-list'), colSum=$('col-sum');
+const btnBack=$('btn-back'), flashImg=$('flash-img'), flashName=$('flash-name');
+const flashProgress=$('flash-progress'), flashScopeEl=$('flash-scope');
+const btnShow=$('btn-show'), btnNext=$('btn-next'), btnFav=$('btn-fav');
+const modalCollect=$('modal-collect'), collectList=$('collect-list');
+const collectNewName=$('collect-new-name'), btnCollectNew=$('btn-collect-new'), btnCollectClose=$('btn-collect-close');
+const marksStage=$('marks-stage'), marksBody=$('marks-body'), marksCount=$('marks-count');
+const btnMarks=$('btn-marks'), btnMarksBack=$('btn-marks-back'), flashCardBox=$('flash-card-box');
+const zoomView=$('zoom-view'), zoomImg=$('zoom-img'), zoomCanvas=$('zoom-canvas'), zoomLabel=$('zoom-label');
+const btnZoomClose=$('btn-zoom-close'), btnZoomPrev=$('btn-zoom-prev'), btnZoomNext=$('btn-zoom-next');
 
-// ---------- IndexedDB ----------
-const DB_NAME = 'birdcards', DB_VERSION = 1;
+// ---------- 小工具 ----------
+function uid(){ return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
+function fmtDate(ts){ const d=new Date(ts),p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+function fmtSize(n){ if(!n) return ''; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function lsGet(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function setStatus(msg,cls){ loadStatus.textContent=msg; loadStatus.className='status '+(cls||''); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---------- IndexedDB（本机缓存 / 题库） ----------
+const DB_NAME='birdcards', DB_VERSION=2;
 function openDB(){
   return new Promise((resolve,reject)=>{
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
       if(!db.objectStoreNames.contains('decks')) db.createObjectStore('decks',{keyPath:'id'});
       if(!db.objectStoreNames.contains('collections')) db.createObjectStore('collections',{keyPath:'id'});
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
   });
 }
 function dbPut(store,val){
@@ -234,88 +356,616 @@ function dbGetAll(store){
     r.onsuccess=()=>{db.close();res(r.result||[]);}; r.onerror=()=>{db.close();rej(r.error);};
   }));
 }
-
-function uid(){ return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
-function fmtDate(ts){
-  const d=new Date(ts), p=n=>String(n).padStart(2,'0');
-  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
-}
-
 async function saveDecks(){
-  try{ await openDB().then(db=>new Promise(res=>{
-    const tx=db.transaction('decks','readwrite'); tx.objectStore('decks').clear();
-    decks.forEach(d=>tx.objectStore('decks').put(d));
-    tx.oncomplete=()=>{db.close();res();};
-  })); }catch(e){}
+  try{
+    await openDB().then(db=>new Promise(res=>{
+      const tx=db.transaction('decks','readwrite'); tx.objectStore('decks').clear();
+      decks.forEach(d=>tx.objectStore('decks').put(d));
+      tx.oncomplete=()=>{db.close();res();};
+    }));
+  }catch(e){}
 }
 async function saveCollections(){
-  try{ await openDB().then(db=>new Promise(res=>{
-    const tx=db.transaction('collections','readwrite'); tx.objectStore('collections').clear();
-    collections.forEach(c=>tx.objectStore('collections').put(c));
-    tx.oncomplete=()=>{db.close();res();};
-  })); }catch(e){}
-}
-
-// ---------- 加载内容链接 ----------
-function setStatus(msg, cls){ loadStatus.textContent=msg; loadStatus.className='status '+(cls||''); }
-
-async function loadContent(){
-  const url = linkInput.value.trim();
-  if(!url){ setStatus('请先粘贴内容链接','error'); return; }
-  btnLoad.disabled = true;
-  setStatus('正在加载，请稍候…');
   try{
-    const resp = await fetch(url);
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const data = await resp.json();
-    const raw = Array.isArray(data) ? data : (data.cards || []);
-    const cards = raw.map(c=>({ id:uid(), name:(c.name||'').trim(), image:c.image||'' })).filter(c=>c.name||c.image);
-    if(!cards.length){ setStatus('内容里没有找到鸟图/鸟名','error'); return; }
-    const deck = { id:uid(), name:(data.name||'未命名').trim(), date:Date.now(), url, cards };
-    decks.unshift(deck);
-    await saveDecks();
-    renderHome();
-    linkInput.value='';
-    setStatus('已加载「'+deck.name+'」：'+cards.length+' 张 ✓','ok');
-  }catch(e){
-    setStatus('加载失败：'+e.message+'（请确认链接是公开可访问的）','error');
-  }finally{
-    btnLoad.disabled=false;
+    await openDB().then(db=>new Promise(res=>{
+      const tx=db.transaction('collections','readwrite'); tx.objectStore('collections').clear();
+      collections.forEach(c=>tx.objectStore('collections').put(c));
+      tx.oncomplete=()=>{db.close();res();};
+    }));
+  }catch(e){}
+}
+function deckWeight(d){ return (d.cards||[]).reduce((s,c)=>s+(c.image?c.image.length:0),0); }
+// 超过上限时淘汰最旧的缓存
+function evictCache(){
+  let total = decks.reduce((s,d)=>s+deckWeight(d),0);
+  const sorted = decks.slice().sort((a,b)=>a.date-b.date);
+  for(const d of sorted){
+    if(total<=CFG.cacheLimit) break;
+    const w = deckWeight(d);
+    if(w<total*0.5){ decks = decks.filter(x=>x.id!==d.id); total -= w; }
   }
 }
 
-// ---------- 渲染 ----------
-function renderHome(){
-  if(!decks.length){
-    deckList.innerHTML='<p class="empty">还没有卡片组。先在上方粘贴内容链接并「加载」。</p>';
+// ---------- GitHub 目录列表 ----------
+// 本地预览（localhost）时优先读同目录 content/，方便上传前先看效果
+function isLocalPreview(){
+  const h = location.hostname;
+  return h==='localhost' || h==='127.0.0.1' || h==='[::1]' || location.protocol==='file:';
+}
+async function fetchLocalDir(){
+  const lr = await fetch(CFG.dir+'/',{cache:'no-store'});
+  if(!lr.ok) throw new Error('HTTP '+lr.status);
+  const html = await lr.text();
+  const files = [];
+  const re = /href="([^"?#]+\.json)"/gi; let mm;
+  while((mm=re.exec(html))){
+    const fn = decodeURIComponent(mm[1].split('/').pop());
+    if(!files.includes(fn)) files.push(fn);
+  }
+  if(!files.length) throw new Error('目录里没有 .json');
+  return files.map(fn=>({
+    path: CFG.dir+'/'+fn, file:fn, size:0,
+    url: new URL(CFG.dir+'/'+encodeURIComponent(fn), location.href).href
+  }));
+}
+async function fetchList(force){
+  const cache = lsGet(LS_LIST,null);
+  if(!force && cache && Date.now()-cache.ts < CFG.listTTL){
+    remote = cache.items; renderDecks(); setStatus('已从本机缓存载入列表','ok'); return true;
+  }
+  // 本地预览：直接读同目录 content/
+  if(isLocalPreview()){
+    try{
+      const items = await fetchLocalDir();
+      remote = items; renderDecks();
+      setStatus('本地预览模式 · '+items.length+' 组卡片','ok');
+      peekNames(force);
+      return true;
+    }catch(e){ /* 落到下面的 GitHub 流程 */ }
+  }
+  setStatus('正在读取 GitHub 目录…');
+  try{
+    const r = await fetch(API_LIST,{cache:'no-store'});
+    if(!r.ok) throw new Error('GitHub API '+r.status+(r.status===403?'（可能是频率限制，请稍后再试）':''));
+    const arr = await r.json();
+    if(!Array.isArray(arr)) throw new Error('返回格式异常');
+    const items = arr.filter(x=>x.type==='file' && /\.json$/i.test(x.name)).map(x=>({
+      path:x.path, file:x.name, size:x.size||0,
+      url:x.download_url||('https://raw.githubusercontent.com/'+CFG.owner+'/'+CFG.repo+'/'+CFG.ref+'/'+x.path)
+    }));
+    lsSet(LS_LIST,{ts:Date.now(),items});
+    remote = items; renderDecks();
+    setStatus('已同步 '+items.length+' 组卡片 ✓','ok');
+    peekNames(force);
+    return true;
+  }catch(e){
+    // 回退 1：同目录下的 content/ 目录列表（离线可用）
+    try{
+      const items = await fetchLocalDir();
+      remote = items; renderDecks();
+      setStatus('已从本地目录读取 '+items.length+' 组卡片','ok');
+      peekNames(force);
+      return true;
+    }catch(e2){}
+    // 回退 2：本机缓存的列表
+    if(cache && cache.items && cache.items.length){
+      remote = cache.items; renderDecks();
+      setStatus('同步失败（'+e.message+'），显示本机缓存','error');
+    }else{
+      setStatus('读取失败：'+e.message,'error');
+    }
+    return false;
+  }
+}
+
+// 轻量读取 JSON 开头几个字节，取出内部 name / type / 有无 marks（不下载整份文件）
+// 缓存带 TTL：这样在 GitHub 上「替换文件」改名后，网页能自动跟上
+async function peekNames(force){
+  const cache = lsGet(LS_NAME,{});
+  const now = Date.now();
+  const maxAge = CFG.listTTL;   // 与列表缓存同样的有效期
+  let changed = false;
+  for(const d of remote){
+    const hit = cache[d.path];
+    if(hit && hit.n !== undefined && !force && (now - (hit.ts||0) < maxAge)){
+      d._name=hit.n; d._type=hit.t||''; d._marks=!!hit.m; continue;
+    }
+    try{
+      // 请求首段并读一块就中断，避免整份下载
+      const r = await fetch(d.url,{headers:{'Range':'bytes=0-2047'}});
+      if(!r.ok || !r.body) continue;
+      const reader = r.body.getReader();
+      const {value} = await reader.read();
+      try{ await reader.cancel(); }catch(e){}
+      if(!value) continue;
+      const head = new TextDecoder('utf-8').decode(value);
+      const m = head.match(/"name"\s*:\s*"([^"]{1,60})"/);
+      const t = head.match(/"type"\s*:\s*"([^"]{1,20})"/);
+      const mk = /"marks"\s*:\s*\[/.test(head);
+      if(m){
+        cache[d.path]={n:m[1], t:t?t[1]:'', m:mk, ts:now};
+        d._name=m[1]; d._type=t?t[1]:''; d._marks=mk;
+        changed=true;
+      }
+    }catch(e){}
+  }
+  if(changed){ lsSet(LS_NAME,cache); renderDecks(); }
+  // 清掉已删除文件的缓存
+  const alive = new Set(remote.map(d=>d.path));
+  let stale = false;
+  Object.keys(cache).forEach(k=>{ if(!alive.has(k)){ delete cache[k]; stale=true; } });
+  if(stale) lsSet(LS_NAME,cache);
+}
+
+// ---------- 取卡片（本机缓存优先） ----------
+function cachedDeck(url){ return decks.find(d=>d.url===url); }
+async function getCards(d){
+  const c = cachedDeck(d.url);
+  if(c && c.cards && c.cards.length) return c.cards;
+  const r = await fetch(d.url);
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const data = await r.json();
+  const raw = Array.isArray(data)?data:(data.cards||[]);
+  const cards = raw.map(x=>({id:uid(),name:(x.name||'').trim(),image:x.image||''}))
+                    .filter(x=>x.name||x.image);
+  if(!cards.length) throw new Error('内容里没有鸟图/鸟名');
+  const deck = { id:uid(), name:(data.name||d.file.replace(/\.json$/i,'')).trim(),
+                 type:(data.type||d._type||'').trim(),
+                 date:Date.now(), url:d.url, cards,
+                 marks:Array.isArray(data.marks)?data.marks:[] };
+  decks = decks.filter(x=>x.url!==d.url).concat([deck]);
+  evictCache();
+  await saveDecks();
+  renderDecks();
+  return cards;
+}
+function displayName(d){
+  const c = cachedDeck(d.url);
+  if(c && c.name) return c.name;
+  if(d._name) return d._name;
+  return d.file.replace(/\.json$/i,'');
+}
+// 卡片组类型：辨识鸟类 / 区域分布鸟类
+function typeOf(d){
+  const c = cachedDeck(d.url);
+  if(c && c.type) return c.type;
+  if(d._type) return d._type;
+  return '';
+}
+const TYPE_CLASS = {'辨识鸟类':'badge-ident','区域分布鸟类':'badge-region'};
+// 搜索：匹配组名或文件名
+function matchDeck(d, kw){
+  if(!kw) return true;
+  const hay = (displayName(d)+' '+d.file+' '+typeOf(d)).toLowerCase();
+  return hay.indexOf(kw.toLowerCase())>=0;
+}
+
+// ---------- 渲染列表 ----------
+function visibleDecks(){
+  return remote.filter(d=>!hidden.has(d.path));
+}
+function renderDecks(){
+  const all = visibleDecks();
+  if(!all.length){
+    deckList.innerHTML=remote.length
+      ? '<p class="empty">所有卡片组都被本机移除了。点下面的「恢复」可以找回。</p>'
+      : '<p class="empty">没有找到卡片组。请确认仓库 content/ 目录下有 .json 文件，然后点「刷新列表」。</p>';
+    listCount.textContent=remote.length?('共 0 / '+remote.length+' 组（已移除 '+hidden.size+' 组）'):'';
+    updateMultiBar();
+    renderRestore();
+    renderDiag();
+    return;
+  }
+  const kw = (searchInput.value||'').trim();
+  const shown = all.filter(d=>matchDeck(d,kw));
+  listCount.textContent = kw
+    ? ('匹配 '+shown.length+' / 共 '+all.length+' 组')
+    : ('共 '+all.length+' 组');
+  if(!shown.length){
+    deckList.innerHTML='<p class="empty">没有匹配「'+esc(kw)+'」的卡片组。</p>';
+    updateMultiBar();
+    renderRestore();
+    renderDiag();
     return;
   }
   deckList.innerHTML='';
-  decks.forEach(deck=>{
+  shown.forEach(d=>{
+    const c = cachedDeck(d.url);
     const div=document.createElement('div');
-    div.className='deck-item';
+    div.className='deck-item'+(selected.has(d.path)?' sel':'');
+
+    const chk=document.createElement('input');
+    chk.type='checkbox'; chk.className='deck-check'; chk.checked=selected.has(d.path);
+    chk.addEventListener('change',()=>{
+      if(chk.checked) selected.add(d.path); else selected.delete(d.path);
+      renderDecks(); updateMultiBar();
+    });
+
     const info=document.createElement('div');
     info.className='deck-info';
-    const name=document.createElement('div');
-    name.className='deck-name'; name.textContent=deck.name;
-    const meta=document.createElement('div');
-    meta.className='deck-meta'; meta.textContent=fmtDate(deck.date)+' · '+deck.cards.length+' 张';
-    info.appendChild(name); info.appendChild(meta);
+    const nm=document.createElement('div'); nm.className='deck-name';
+    nm.textContent=displayName(d);
+    const tp=typeOf(d);
+    if(tp){
+      const badge=document.createElement('span');
+      badge.className='deck-badge '+(TYPE_CLASS[tp]||'badge-other');
+      badge.textContent=tp;
+      nm.appendChild(badge);
+    }
+    const meta=document.createElement('div'); meta.className='deck-meta';
+    meta.textContent=(c?c.cards.length+' 张 · 已缓存到本机':'未加载到本机')
+                     +(d.size?' · '+fmtSize(d.size):'');
+    info.appendChild(nm); info.appendChild(meta);
+
+    // 直达 GitHub：点这一行就能去替换该文件
+    const gh=document.createElement('a');
+    gh.className='gh-link'; gh.target='_blank'; gh.rel='noopener';
+    gh.href=ghFileUrl(d); gh.title='在 GitHub 上打开/替换这个文件';
+    gh.textContent='↗ 替换';
+    gh.addEventListener('click',e=>e.stopPropagation());
+    info.appendChild(gh);
+
     const study=document.createElement('button');
     study.className='btn primary'; study.textContent='刷闪卡';
-    study.addEventListener('click',()=>startFlash(deck.cards, deck.name));
-    const del=document.createElement('button');
-    del.className='btn ghost'; del.textContent='删除';
-    del.addEventListener('click',()=>{
-      if(!confirm('删除卡片组「'+deck.name+'」？此操作不可撤销。')) return;
-      decks=decks.filter(x=>x.id!==deck.id); saveDecks(); renderHome();
-    });
-    div.appendChild(info); div.appendChild(study); div.appendChild(del);
+    study.addEventListener('click',()=>startOne(d));
+
+    const delBtn=document.createElement('button');
+    delBtn.className='btn ghost'; delBtn.textContent='删除';
+    delBtn.addEventListener('click',()=>deleteDeck(d));
+
+    div.appendChild(chk); div.appendChild(info); div.appendChild(study);
+    div.appendChild(delBtn);
     deckList.appendChild(div);
   });
+  updateMultiBar();
+  renderRestore();
+  renderDiag();
+}
+// 该组在 GitHub 上的文件页（可直接替换）
+function ghFileUrl(d){
+  const p = (d.path||'').split('/').map(encodeURIComponent).join('/');
+  return 'https://github.com/'+CFG.owner+'/'+CFG.repo+'/blob/'+CFG.ref+'/'+p;
+}
+// ---------- 同步诊断 ----------
+// 列出线上实际读到的内容，并标出可能导致「显示不对」的问题
+function renderDiag(){
+  const box = $('diag-box'), sum = $('diag-sum');
+  if(!box) return;
+  const rows = [];
+  let warns = 0;
+  visibleDecks().forEach(d=>{
+    const c = cachedDeck(d.url);
+    const fileStem = d.file.replace(/\.json$/i,'');
+    const realName = (c && c.name) || d._name || '(未读取)';
+    const tp = typeOf(d);
+    const cards = c ? c.cards.length : (d._name ? '—' : '未加载');
+    const mk = c ? (c.marks ? c.marks.length : 0) : (d._marks ? '有' : '—');
+    const notes = [];
+    if(d._name && d._name !== fileStem) notes.push('内部名与文件名不一致');
+    if(!tp) notes.push('缺 type');
+    if(!d._name) notes.push('还没读到 name');
+    if(notes.length) warns++;
+    rows.push({file:d.file, name:realName, type:tp||'—', cards, mk, notes});
+  });
+  sum.textContent = warns ? ('· '+warns+' 项待处理') : (remote.length?('· 全部正常'):'');
+  if(!rows.length){ box.innerHTML='<p class="empty">还没有卡片组。</p>'; return; }
+  let h = '<div class="diag-head">'
+    + '<span>文件名</span><span>内部 name</span><span>type</span><span>卡数</span><span>辨识点</span></div>';
+  rows.forEach(r=>{
+    h += '<div class="diag-row'+(r.notes.length?' bad':'')+'">'
+      + '<span class="d1" title="'+esc(r.file)+'">'+esc(r.file)+'</span>'
+      + '<span class="d2">'+esc(r.name)+'</span>'
+      + '<span class="d3">'+esc(r.type)+'</span>'
+      + '<span class="d4">'+esc(String(r.cards))+'</span>'
+      + '<span class="d5">'+esc(String(r.mk))+'</span>'
+      + '</div>';
+    if(r.notes.length) h += '<div class="diag-note">⚠ '+esc(r.file)+'：'+esc(r.notes.join('、'))+'</div>';
+  });
+  h += '<div class="diag-foot">'
+    + '仓库：<a target="_blank" rel="noopener" href="https://github.com/'+CFG.owner+'/'+CFG.repo+'/tree/'+CFG.ref+'/'+CFG.dir+'">'+CFG.owner+'/'+CFG.repo+'/'+CFG.dir+'/</a>'
+    + '　·　<a target="_blank" rel="noopener" href="https://github.com/'+CFG.owner+'/'+CFG.repo+'/upload/'+CFG.ref+'/'+CFG.dir+'">📤 上传新文件</a>'
+    + '</div>';
+  box.innerHTML=h;
+}
+// 在本机隐藏某个分组（不动 GitHub 上的文件）
+function deleteDeck(d){
+  if(!confirm('从本机列表移除「'+displayName(d)+'」？\n\n只影响你这台设备，GitHub 上的文件不会被删除。\n之后可以在「已移除的组」里恢复。')) return;
+  hidden.add(d.path);
+  selected.delete(d.path);
+  lsSet(LS_HIDDEN, Array.from(hidden));
+  // 同时清掉本机缓存的卡片，释放空间
+  const c = cachedDeck(d.url);
+  if(c){
+    decks = decks.filter(x=>x.id!==c.id);
+    saveDecks();
+  }
+  setStatus('已从本机移除「'+displayName(d)+'」','ok');
+  renderDecks();
+}
+// 恢复被移除的分组
+function renderRestore(){
+  const box = $('restore-box');
+  const back = Array.from(hidden).map(p=>{
+    const d = remote.find(x=>x.path===p);
+    return d ? {path:p, name:displayName(d)} : null;
+  }).filter(Boolean);
+  if(!back.length){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  box.classList.remove('hidden');
+  box.innerHTML='<div class="restore-head">已移除的组（仅本机）</div>';
+  back.forEach(b=>{
+    const row=document.createElement('div');
+    row.className='deck-item';
+    const nm=document.createElement('div');
+    nm.className='deck-name'; nm.textContent=b.name;
+    const btn=document.createElement('button');
+    btn.className='btn ghost'; btn.textContent='恢复';
+    btn.addEventListener('click',()=>{
+      hidden.delete(b.path);
+      lsSet(LS_HIDDEN, Array.from(hidden));
+      setStatus('已恢复「'+b.name+'」','ok');
+      renderDecks();
+    });
+    row.appendChild(nm); row.appendChild(btn);
+    box.appendChild(row);
+  });
+}
+function updateMultiBar(){
+  const sel = visibleDecks().filter(d=>selected.has(d.path));
+  if(!sel.length){
+    multiBar.classList.add('hidden');
+    document.body.classList.remove('has-bar');
+    return;
+  }
+  multiBar.classList.remove('hidden');
+  document.body.classList.add('has-bar');
+  const cached = sel.reduce((s,d)=>{ const c=cachedDeck(d.url); return s+(c?c.cards.length:0); },0);
+  multiInfo.innerHTML='已选 '+sel.length+' 组<small>'+(cached?('已缓存 '+cached+' 张'):'点「合并刷闪卡」自动加载')+'</small>';
+  btnMulti.disabled=false;
 }
 
+// ---------- 辨识点 ----------
+// 从若干个分组里取出全部辨识点图
+async function collectMarks(decks){
+  const out = [];
+  for(const d of decks){
+    if(!d) continue;
+    const c = cachedDeck(d.url);
+    let marks = (c && c.marks) ? c.marks : null;
+    if(!marks || !marks.length){
+      try{
+        const r = await fetch(d.url);
+        if(!r.ok) continue;
+        const data = await r.json();
+        marks = Array.isArray(data.marks)?data.marks:[];
+        const raw = Array.isArray(data)?data:(data.cards||[]);
+        const cards = raw.map(x=>({id:uid(),name:(x.name||'').trim(),image:x.image||''}))
+                          .filter(x=>x.name||x.image);
+        if(cards.length){
+          const deck = { id:uid(), name:(data.name||d.file.replace(/\.json$/i,'')).trim(),
+                         type:(data.type||d._type||'').trim(),
+                         date:Date.now(), url:d.url, cards, marks };
+          decks = decks.filter(x=>x.url!==d.url).concat([deck]);
+          evictCache(); await saveDecks();
+        }
+      }catch(e){ continue; }
+    }
+    if(marks && marks.length) out.push({name:displayName(d), marks});
+  }
+  return out;
+}
+// ---------- 辨识点：与闪卡同页面展示 ----------
+let marksImages = [];      // 当前组的全部辨识点图（扁平）
+let marksMode = false;     // 是否处于「辨识点模式」
+
+async function showMarks(){
+  const list = flashDecks||[];
+  marksBody.innerHTML='<p class="empty">正在加载…</p>';
+  marksCount.textContent='辨识点';
+  marksStage.classList.remove('hidden');
+  flashCardBox.classList.add('hidden');
+  $('flash-card-controls').classList.add('hidden');
+  marksMode = true;
+  try{
+    const groups = await collectMarks(list);
+    marksImages = [];
+    groups.forEach(g=>g.marks.forEach(src=>marksImages.push(src)));
+    if(!marksImages.length){
+      marksBody.innerHTML='<p class="empty">这一组没有辨识点图。</p>';
+      marksCount.textContent='辨识点 · 0 张';
+      return;
+    }
+    marksCount.textContent='辨识点 · '+marksImages.length+' 张'
+      + (groups.length>1 ? '（'+groups.length+' 组）' : '');
+    marksBody.innerHTML='';
+    let idx = 0;
+    groups.forEach(g=>{
+      if(groups.length>1){
+        const h=document.createElement('div');
+        h.className='marks-group'; h.textContent=g.name;
+        marksBody.appendChild(h);
+      }
+      g.marks.forEach(src=>{
+        idx++;
+        const fig=document.createElement('div');
+        fig.className='marks-figure';
+        const img=document.createElement('img');
+        img.src=src; img.alt='辨识点 '+idx;
+        img.loading='lazy';
+        const cap=document.createElement('span');
+        cap.className='marks-cap'; cap.textContent=idx+' / '+marksImages.length;
+        img.addEventListener('load',()=>{
+          cap.textContent = idx+' / '+marksImages.length+' · '+img.naturalWidth+'×'+img.naturalHeight;
+        });
+        fig.appendChild(img); fig.appendChild(cap);
+        fig.addEventListener('click',()=>openZoom(idx-1));
+        marksBody.appendChild(fig);
+      });
+    });
+  }catch(e){
+    marksBody.innerHTML='<p class="empty">加载失败：'+esc(e.message)+'</p>';
+  }
+}
+function hideMarks(){
+  marksMode = false;
+  marksStage.classList.add('hidden');
+  flashCardBox.classList.remove('hidden');
+  $('flash-card-controls').classList.remove('hidden');
+}
+
+// ---------- 放大查看 ----------
+const zoom = {scale:1, x:0, y:0};
+let zoomIdx = 0;
+function applyZoom(){
+  zoomImg.style.transform='translate('+zoom.x+'px,'+zoom.y+'px) scale('+zoom.scale+')';
+}
+function resetZoom(){
+  zoom.scale=1; zoom.x=0; zoom.y=0; applyZoom();
+}
+function openZoom(i){
+  if(!marksImages.length) return;
+  zoomIdx = (i+marksImages.length)%marksImages.length;
+  zoomImg.src = marksImages[zoomIdx];
+  zoomLabel.textContent = (zoomIdx+1)+' / '+marksImages.length;
+  resetZoom();
+  zoomView.classList.remove('hidden');
+}
+function closeZoom(){
+  zoomView.classList.add('hidden');
+  resetZoom();
+}
+function zoomStep(i){
+  if(!marksImages.length) return;
+  zoomIdx=(zoomIdx+i+marksImages.length)%marksImages.length;
+  zoomImg.src=marksImages[zoomIdx];
+  zoomLabel.textContent=(zoomIdx+1)+' / '+marksImages.length;
+  resetZoom();
+}
+// 滚轮缩放（电脑）
+zoomCanvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const k = e.deltaY<0 ? 1.15 : 1/1.15;
+  zoom.scale = Math.min(8, Math.max(1, zoom.scale*k));
+  if(zoom.scale===1){ zoom.x=0; zoom.y=0; }
+  applyZoom();
+},{passive:false});
+// 双击 / 双指缩放
+let zLast = 0, zStartDist = 0, zStartScale = 1, zMoved = false, zPan = null, zTapTime = 0;
+zoomCanvas.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){
+    zStartDist = dist(e.touches[0],e.touches[1]);
+    zStartScale = zoom.scale;
+    zMoved = true;
+  }else if(e.touches.length===1){
+    zMoved=false;
+    zPan={x:e.touches[0].clientX, y:e.touches[0].clientY};
+  }
+},{passive:true});
+function dist(a,b){ const dx=a.clientX-b.clientX, dy=a.clientY-b.clientY; return Math.sqrt(dx*dx+dy*dy); }
+zoomCanvas.addEventListener('touchmove',e=>{
+  if(e.touches.length===2 && zStartDist){
+    e.preventDefault();
+    const d = dist(e.touches[0],e.touches[1]);
+    zoom.scale = Math.min(8, Math.max(1, zStartScale * d / zStartDist));
+    if(zoom.scale===1){ zoom.x=0; zoom.y=0; }
+    applyZoom();
+  }else if(e.touches.length===1 && zoom.scale>1 && zPan){
+    e.preventDefault();
+    zoom.x += e.touches[0].clientX - zPan.x;
+    zoom.y += e.touches[0].clientY - zPan.y;
+    zPan = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+    zMoved=true;
+    applyZoom();
+  }
+},{passive:false});
+zoomCanvas.addEventListener('touchend',e=>{
+  if(e.touches.length===0){
+    if(!zMoved){
+      const now=Date.now();
+      if(now - zTapTime < 300){        // 双击：1x <-> 2.5x
+        zoom.scale = zoom.scale>1 ? 1 : 2.5;
+        if(zoom.scale===1){ zoom.x=0; zoom.y=0; }
+        applyZoom();
+        zTapTime = 0;
+      }else{
+        zTapTime = now;               // 记住这次单击，等第二次
+      }
+    }
+    zStartDist=0; zPan=null;
+  }
+},{passive:true});
+zoomCanvas.addEventListener('dblclick',e=>{
+  e.preventDefault();
+  zoom.scale = zoom.scale>1 ? 1 : 2.5;
+  if(zoom.scale===1){ zoom.x=0; zoom.y=0; }
+  applyZoom();
+});
+// 鼠标拖动（电脑）
+let mDown=false, mStart={x:0,y:0}, mBase={x:0,y:0};
+zoomCanvas.addEventListener('mousedown',e=>{ mDown=true; mStart={x:e.clientX,y:e.clientY}; mBase={x:zoom.x,y:zoom.y}; });
+window.addEventListener('mousemove',e=>{
+  if(!mDown || zoom.scale<=1) return;
+  zoom.x = mBase.x + (e.clientX-mStart.x);
+  zoom.y = mBase.y + (e.clientY-mStart.y);
+  applyZoom();
+});
+window.addEventListener('mouseup',()=>{ mDown=false; });
+
+// ---------- 刷闪卡 ----------
+async function startOne(d){
+  try{
+    setStatus('正在加载「'+displayName(d)+'」…');
+    const cards = await getCards(d);
+    setStatus('已就绪：'+cards.length+' 张','ok');
+    startFlash(cards, displayName(d), [d]);
+  }catch(e){ setStatus('加载失败：'+e.message,'error'); }
+}
+async function startMulti(){
+  const sel = visibleDecks().filter(d=>selected.has(d.path));
+  if(!sel.length) return;
+  btnMulti.disabled=true;
+  const per=[]; let ok=0;
+  for(let i=0;i<sel.length;i++){
+    setStatus('正在准备 '+(i+1)+'/'+sel.length+'：'+displayName(sel[i])+'…');
+    try{ per.push(await getCards(sel[i])); ok++; }
+    catch(e){ setStatus('「'+displayName(sel[i])+'」加载失败：'+e.message,'error'); }
+  }
+  btnMulti.disabled=false;
+  // 交错合并：避免连续刷同一组
+  let merged=[];
+  const maxLen=per.reduce((m,c)=>Math.max(m,c.length),0);
+  for(let k=0;k<maxLen;k++) for(const c of per) if(c[k]) merged.push(c[k]);
+  if(!merged.length){ setStatus('没有可刷的卡片','error'); return; }
+  if(optShuffle.checked) shuffleArr(merged);
+  setStatus('已就绪：'+merged.length+' 张','ok');
+  startFlash(merged, sel.length+' 组合并', sel);
+}
+function shuffleArr(arr){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+}
+function startFlash(cards, scope, decks){
+  if(!cards||!cards.length){ alert('这一组还没有卡片。'); return; }
+  flashCards=cards.slice();
+  if(optShuffle.checked) shuffleArr(flashCards);
+  flashIndex=0; flashScope=scope||'闪卡';
+  flashScopeEl.textContent=flashScope;
+  flashDecks = decks||[];
+  // 有辨识点图才显示【辨识点】按钮
+  btnMarks.classList.toggle('hidden', !flashDecks.some(d=>d && (d._marks || (cachedDeck(d.url)&&cachedDeck(d.url).marks&&cachedDeck(d.url).marks.length))));
+  viewHome.classList.add('hidden'); viewCollections.classList.add('hidden');
+  viewFlash.classList.remove('hidden');
+  showFlash();
+}
+function currentCard(){ return flashCards[flashIndex]; }
+function showFlash(){
+  const c=currentCard();
+  flashProgress.textContent=(flashIndex+1)+' / '+flashCards.length;
+  flashName.classList.add('hidden');
+  flashImg.src=c.image||'';
+}
+
+// ---------- 题库 ----------
 function renderCollections(){
+  colSum.textContent=collections.length?('（'+collections.length+' 组）'):'';
   if(!collections.length){
     collectionsList.innerHTML='<p class="empty">还没有题库。点「新建」创建，然后在闪卡里点「⭐ 收藏」把鸟加进来。</p>';
     return;
@@ -325,13 +975,13 @@ function renderCollections(){
     const div=document.createElement('div');
     div.className='collection-item';
     const info=document.createElement('div');
-    const name=document.createElement('div'); name.className='col-name'; name.textContent=col.name;
+    const nm=document.createElement('div'); nm.className='col-name'; nm.textContent=col.name;
     const cnt=document.createElement('div'); cnt.className='col-count'; cnt.textContent=col.cards.length+' 张';
-    info.appendChild(name); info.appendChild(cnt);
+    info.appendChild(nm); info.appendChild(cnt);
     const actions=document.createElement('div'); actions.className='col-actions';
     const review=document.createElement('button');
     review.className='btn primary'; review.textContent='复习';
-    review.addEventListener('click',()=>startFlash(col.cards, col.name));
+    review.addEventListener('click',()=>startFlash(col.cards,col.name,[]));
     const del=document.createElement('button');
     del.className='btn ghost'; del.textContent='删除';
     del.addEventListener('click',()=>{
@@ -343,88 +993,76 @@ function renderCollections(){
     collectionsList.appendChild(div);
   });
 }
-
-// ---------- 闪卡 ----------
-function shuffleArr(arr){
-  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
-}
-function startFlash(cards, scope){
-  if(!cards || !cards.length){ alert('这一组还没有卡片。'); return; }
-  flashCards = cards.slice();
-  if(optShuffle.checked) shuffleArr(flashCards);
-  flashIndex=0;
-  flashScope=scope||'闪卡';
-  flashScopeEl.textContent=flashScope;
-  viewHome.classList.add('hidden');
-  viewCollections.classList.add('hidden');
-  viewFlash.classList.remove('hidden');
-  showFlash();
-}
-function currentCard(){ return flashCards[flashIndex]; }
-function showFlash(){
-  const c=currentCard();
-  flashProgress.textContent=(flashIndex+1)+' / '+flashCards.length;
-  flashName.classList.add('hidden');
-  flashImg.src = c.image || '';
-}
-
-// ---------- 收藏 ----------
-function openCollectModal(card){
-  renderCollectList(card);
-  modalCollect.classList.remove('hidden');
-}
+function openCollectModal(card){ renderCollectList(card); modalCollect.classList.remove('hidden'); }
 function renderCollectList(card){
   collectList.innerHTML='';
   if(!collections.length){ collectList.innerHTML='<p class="empty">还没有题库，在下方新建一个。</p>'; return; }
   collections.forEach(col=>{
-    const has = col.cards.some(c=>c.name===card.name);
+    const has=col.cards.some(c=>c.name===card.name);
     const row=document.createElement('div');
     row.className='collect-item'+(has?' active':'');
-    const name=document.createElement('span'); name.textContent=col.name+'（'+col.cards.length+'）';
-    const mark=document.createElement('span'); mark.className='mark'; mark.textContent=has?'✓ 已收藏':'＋ 收藏';
-    row.appendChild(name); row.appendChild(mark);
+    const nm=document.createElement('span'); nm.textContent=col.name+'（'+col.cards.length+'）';
+    const mk=document.createElement('span'); mk.className='mark'; mk.textContent=has?'✓ 已收藏':'＋ 收藏';
+    row.appendChild(nm); row.appendChild(mk);
     row.addEventListener('click',()=>{
-      if(has){ col.cards=col.cards.filter(c=>c.name!==card.name); }
-      else{ col.cards.push({id:uid(), name:card.name, image:card.image}); }
-      saveCollections(); renderCollectList(card);
+      if(has) col.cards=col.cards.filter(c=>c.name!==card.name);
+      else col.cards.push({id:uid(),name:card.name,image:card.image});
+      saveCollections(); renderCollectList(card); renderCollections();
     });
     collectList.appendChild(row);
   });
 }
 
 // ---------- 事件 ----------
-btnLoad.addEventListener('click', loadContent);
+btnRefresh.addEventListener('click',()=>fetchList(true));
+// 顶部「上传新卡片组」直达 GitHub 上传页
+$('gh-upload').href='https://github.com/'+CFG.owner+'/'+CFG.repo+'/upload/'+CFG.ref+'/'+CFG.dir;
+searchInput.addEventListener('input',()=>renderDecks());
+btnClearSearch.addEventListener('click',()=>{ searchInput.value=''; renderDecks(); searchInput.focus(); });
+btnMulti.addEventListener('click',startMulti);
+btnClear.addEventListener('click',()=>{ selected.clear(); renderDecks(); updateMultiBar(); });
 btnCollections.addEventListener('click',()=>{ renderCollections(); viewHome.classList.add('hidden'); viewCollections.classList.remove('hidden'); });
 btnCollectionsBack.addEventListener('click',()=>{ viewCollections.classList.add('hidden'); viewHome.classList.remove('hidden'); });
 btnNewCollection.addEventListener('click',()=>{
   const name=newCollectionName.value.trim();
   if(!name){ alert('请输入题库名称'); return; }
-  collections.push({id:uid(), name, cards:[]});
+  collections.push({id:uid(),name,cards:[]});
   saveCollections(); newCollectionName.value=''; renderCollections();
 });
-btnBack.addEventListener('click',()=>{ viewFlash.classList.add('hidden'); viewHome.classList.remove('hidden'); });
+btnBack.addEventListener('click',()=>{ hideMarks(); closeZoom(); viewFlash.classList.add('hidden'); viewHome.classList.remove('hidden'); });
 btnShow.addEventListener('click',()=>{
-  flashName.textContent = currentCard().name || '（未填写鸟名）';
+  flashName.textContent=currentCard().name||'（未填写鸟名）';
   flashName.classList.remove('hidden');
 });
 btnNext.addEventListener('click',()=>{ flashIndex=(flashIndex+1)%flashCards.length; showFlash(); });
 btnFav.addEventListener('click',()=>openCollectModal(currentCard()));
+// 辨识点：在闪卡同一页面里展开 / 收起
+btnMarks.addEventListener('click',()=>{ if(marksMode) hideMarks(); else showMarks(); });
+btnMarksBack.addEventListener('click',()=>hideMarks());
+// 放大查看
+btnZoomClose.addEventListener('click',closeZoom);
+btnZoomPrev.addEventListener('click',()=>zoomStep(-1));
+btnZoomNext.addEventListener('click',()=>zoomStep(1));
+zoomView.addEventListener('click',e=>{ if(e.target===zoomView||e.target===zoomCanvas) closeZoom(); });
 btnCollectClose.addEventListener('click',()=>modalCollect.classList.add('hidden'));
 btnCollectNew.addEventListener('click',()=>{
   const name=collectNewName.value.trim();
   if(!name){ alert('请输入题库名称'); return; }
-  const col={id:uid(), name, cards:[]};
+  const col={id:uid(),name,cards:[]};
   const c=currentCard();
-  col.cards.push({id:uid(), name:c.name, image:c.image});
+  col.cards.push({id:uid(),name:c.name,image:c.image});
   collections.push(col); saveCollections();
-  collectNewName.value=''; renderCollectList(c);
+  collectNewName.value=''; renderCollectList(c); renderCollections();
 });
 
 // ---------- 启动 ----------
 (async function init(){
-  try{ decks = await dbGetAll('decks'); }catch(e){}
-  try{ collections = await dbGetAll('collections'); }catch(e){}
-  renderHome();
+  try{ decks=await dbGetAll('decks'); }catch(e){}
+  try{ collections=await dbGetAll('collections'); }catch(e){}
+  try{ hidden=new Set(lsGet(LS_HIDDEN,[])); }catch(e){ hidden=new Set(); }
+  renderCollections();
+  await fetchList(false);
+  syncSub.textContent='共享卡片组 · '+visibleDecks().length+' 组';
 })();
 })();
 </script>
