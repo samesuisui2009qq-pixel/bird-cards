@@ -227,6 +227,9 @@ body.has-bar .view{padding-bottom:96px}
     </div>
     <div class="row flash-controls" id="flash-card-controls">
       <button id="btn-show" class="btn primary big">显示鸟种名称</button>
+    </div>
+    <div class="row flash-controls" id="flash-nav-controls">
+      <button id="btn-prev" class="btn big">上一个</button>
       <button id="btn-next" class="btn big">下一个</button>
     </div>
     <div class="row flash-controls">
@@ -318,7 +321,7 @@ const newCollectionName=$('new-collection-name'), btnNewCollection=$('btn-new-co
 const collectionsList=$('collections-list'), colSum=$('col-sum');
 const btnBack=$('btn-back'), flashImg=$('flash-img'), flashName=$('flash-name');
 const flashProgress=$('flash-progress'), flashScopeEl=$('flash-scope');
-const btnShow=$('btn-show'), btnNext=$('btn-next'), btnFav=$('btn-fav');
+const btnShow=$('btn-show'), btnPrev=$('btn-prev'), btnNext=$('btn-next'), btnFav=$('btn-fav');
 const modalCollect=$('modal-collect'), collectList=$('collect-list');
 const collectNewName=$('collect-new-name'), btnCollectNew=$('btn-collect-new'), btnCollectClose=$('btn-collect-close');
 const marksStage=$('marks-stage'), marksBody=$('marks-body'), marksCount=$('marks-count');
@@ -784,6 +787,7 @@ async function showMarks(){
   marksStage.classList.remove('hidden');
   flashCardBox.classList.add('hidden');
   $('flash-card-controls').classList.add('hidden');
+  $('flash-nav-controls').classList.add('hidden');
   marksMode = true;
   try{
     const groups = await collectMarks(list);
@@ -830,6 +834,7 @@ function hideMarks(){
   marksStage.classList.add('hidden');
   flashCardBox.classList.remove('hidden');
   $('flash-card-controls').classList.remove('hidden');
+  $('flash-nav-controls').classList.remove('hidden');
 }
 
 // ---------- 放大查看 ----------
@@ -1063,6 +1068,7 @@ btnShow.addEventListener('click',()=>{
   flashName.textContent=currentCard().name||'（未填写鸟名）';
   flashName.classList.remove('hidden');
 });
+btnPrev.addEventListener('click',()=>{ flashIndex=(flashIndex-1+flashCards.length)%flashCards.length; showFlash(); });
 btnNext.addEventListener('click',()=>{ flashIndex=(flashIndex+1)%flashCards.length; showFlash(); });
 btnFav.addEventListener('click',()=>openCollectModal(currentCard()));
 // 辨识点：在闪卡同一页面里展开 / 收起
