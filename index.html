@@ -54,7 +54,7 @@ button{font:inherit;cursor:pointer}
 .deck-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
 .deck-item.sel{border-color:var(--green);background:#f0f7f1}
 .deck-info{flex:1;min-width:0}
-.deck-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deck-name{font-weight:600;overflow-wrap:anywhere;word-break:break-word;line-height:1.35}
 .deck-meta{color:var(--muted);font-size:12px;margin-top:2px}
 .deck-check{width:20px;height:20px;flex:none;accent-color:var(--green);cursor:pointer}
 .deck-badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;margin-left:6px;
@@ -63,6 +63,8 @@ button{font:inherit;cursor:pointer}
 .badge-region{background:#eaf4e8;color:#3f7d46}
 .deck-badge.badge-other{background:#f0f0ec;color:var(--muted)}
 .count-line{font-size:12px;color:var(--muted);margin:8px 0 2px}
+.select-all-line{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-top:8px;padding:4px 2px;cursor:pointer;user-select:none}
+.select-all-line input{width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex:none}
 .restore-box{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
 .restore-box .deck-item{padding:8px 12px;background:#fbfcf9}
 .restore-head{font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -169,6 +171,9 @@ body.has-bar .view{padding-bottom:96px}
       <input id="search-input" type="text" placeholder="搜索卡片组，如：海南" autocomplete="off" />
       <button id="btn-clear-search" class="btn ghost">清空</button>
     </div>
+    <label class="opt select-all-line" id="select-all-line" style="display:none">
+      <input type="checkbox" id="select-all-check" /> 全选
+    </label>
     <div id="list-count" class="count-line"></div>
     <div id="deck-list" class="deck-list">
       <p class="empty">正在读取 GitHub 目录…</p>
@@ -306,6 +311,7 @@ const viewHome=$('view-home'), viewFlash=$('view-flash'), viewCollections=$('vie
 const deckList=$('deck-list'), loadStatus=$('load-status'), syncSub=$('sync-sub');
 const optShuffle=$('opt-shuffle'), btnRefresh=$('btn-refresh');
 const searchInput=$('search-input'), btnClearSearch=$('btn-clear-search'), listCount=$('list-count');
+const selectAllLine=$('select-all-line'), selectAllCheck=$('select-all-check');
 const multiBar=$('multi-bar'), multiInfo=$('multi-info'), btnMulti=$('btn-multi'), btnClear=$('btn-clear');
 const btnCollections=$('btn-collections'), btnCollectionsBack=$('btn-collections-back');
 const newCollectionName=$('new-collection-name'), btnNewCollection=$('btn-new-collection');
@@ -561,6 +567,8 @@ function renderDecks(){
   listCount.textContent = kw
     ? ('匹配 '+shown.length+' / 共 '+all.length+' 组')
     : ('共 '+all.length+' 组');
+  // 全选勾选框：仅在搜索有结果时显示；勾选状态 = 当前结果是否全被选中
+  updateSelectAll(shown);
   if(!shown.length){
     deckList.innerHTML='<p class="empty">没有匹配「'+esc(kw)+'」的卡片组。</p>';
     updateMultiBar();
@@ -709,6 +717,18 @@ function renderRestore(){
     box.appendChild(row);
   });
 }
+// 「全选」勾选框：只在搜索有结果时显示；状态 = 当前结果是否全被选中
+function updateSelectAll(shown){
+  if(!shown.length){
+    selectAllLine.style.display='none';
+    selectAllCheck.checked=false;
+    return;
+  }
+  selectAllLine.style.display='inline-flex';
+  const allSelected = shown.every(d=>selected.has(d.path));
+  selectAllCheck.checked = allSelected;
+}
+
 function updateMultiBar(){
   const sel = visibleDecks().filter(d=>selected.has(d.path));
   if(!sel.length){
@@ -1019,6 +1039,15 @@ btnRefresh.addEventListener('click',()=>fetchList(true));
 $('gh-upload').href='https://github.com/'+CFG.owner+'/'+CFG.repo+'/upload/'+CFG.ref+'/'+CFG.dir;
 searchInput.addEventListener('input',()=>renderDecks());
 btnClearSearch.addEventListener('click',()=>{ searchInput.value=''; renderDecks(); searchInput.focus(); });
+// 全选：勾上选中当前搜索结果全部，取消则清空这些选择
+selectAllCheck.addEventListener('change',()=>{
+  const kw = (searchInput.value||'').trim();
+  const shown = visibleDecks().filter(d=>matchDeck(d,kw));
+  shown.forEach(d=>{
+    if(selectAllCheck.checked) selected.add(d.path); else selected.delete(d.path);
+  });
+  renderDecks(); updateMultiBar();
+});
 btnMulti.addEventListener('click',startMulti);
 btnClear.addEventListener('click',()=>{ selected.clear(); renderDecks(); updateMultiBar(); });
 btnCollections.addEventListener('click',()=>{ renderCollections(); viewHome.classList.add('hidden'); viewCollections.classList.remove('hidden'); });
