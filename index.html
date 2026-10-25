@@ -74,7 +74,8 @@ button{font:inherit;cursor:pointer}
 
 .flash-stage{margin-top:10px}
 .flash-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.flash-card img{width:100%;max-height:60vh;object-fit:contain;background:#0f1410;display:block}
+.flash-card .img-box{height:52vh;background:#0f1410}
+.flash-card img{width:100%;height:100%;object-fit:contain;background:#0f1410;display:block}
 .flash-name{padding:18px;text-align:center;font-size:26px;font-weight:700;letter-spacing:2px;background:#fbfdf9}
 .flash-controls{margin-top:14px}
 
@@ -211,7 +212,9 @@ body.has-bar .view{padding-bottom:96px}
   </header>
   <section class="flash-stage">
     <div id="flash-card-box" class="flash-card">
-      <img id="flash-img" alt="鸟图" />
+      <div class="img-box">
+        <img id="flash-img" alt="鸟图" />
+      </div>
       <div id="flash-name" class="flash-name hidden">——</div>
     </div>
     <!-- 辨识点：与闪卡同页面，可滚动查看 -->
