@@ -65,6 +65,18 @@
   .mark-item .foot .info { font-size:10px; color:var(--muted); flex:1; }
   .mark-item .foot .del { border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:14px; padding:0 4px; }
   .mark-item .foot .del:hover { color:var(--miss); }
+  .pick { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:#fff; cursor:pointer; transition:box-shadow .12s, border-color .12s; }
+  .pick .thumb { position:relative; }
+  .pick img { width:100%; height:120px; object-fit:cover; display:block; background:#111; }
+  .pick .tick { position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%; background:var(--brand); color:#fff; font-size:14px; display:none; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.4); }
+  .pick.sel { border-color:var(--brand); box-shadow:0 0 0 2px rgba(15,108,189,.35); }
+  .pick.sel .tick { display:flex; }
+  .pick .foot { display:flex; align-items:center; gap:6px; padding:6px 8px; }
+  .pick .foot .info { font-size:10px; color:var(--muted); flex:1; line-height:1.3; word-break:break-all; }
+  .pick .zoom { border:none; background:transparent; color:var(--muted); cursor:zoom-in; font-size:13px; padding:0 2px; }
+  #lightbox { position:fixed; inset:0; background:rgba(0,0,0,.9); display:none; align-items:center; justify-content:center; z-index:99; cursor:zoom-out; }
+  #lightbox img { max-width:96vw; max-height:94vh; object-fit:contain; box-shadow:0 8px 40px rgba(0,0,0,.6); }
+  .card img, .mark-item img { cursor:zoom-in; }
 </style>
 </head>
 <body>
@@ -80,11 +92,27 @@
       <button id="btnFolder" class="primary">📁 选择文件夹</button>
       <button id="btnFiles">📄 添加单个文件</button>
       <button id="btnClear">清空</button>
+      <button id="btnInat" title="按鸟类名录从 iNaturalist 逐鸟扒图">🐦 ina</button>
     </div>
     <input type="file" id="inFolder" webkitdirectory hidden>
     <input type="file" id="inFiles" multiple accept=".html,.htm,.docx" hidden>
+    <input type="file" id="inXlsx" accept=".xlsx" hidden>
     <div class="list" id="srcList"></div>
     <div class="hint">选「文件夹」可一次读入整篇文章（网页 + 图片）。<br>也支持直接选 .html / .docx 文件。</div>
+  </div>
+
+  <div class="step" id="inatStep" style="display:none">
+    <h2><span class="num">i</span>iNaturalist 扒图（按名录 Excel 顺序）</h2>
+    <div class="summary" id="inatSummary"></div>
+    <div class="legend">每只鸟先抓 10 张（默认全不选）：点图选择/取消，🔍 放大，补图 再抓 10 张，下一只 进入名录下一鸟。全部抓完生成 JSON。</div>
+    <div id="inatStatus" class="hint"></div>
+    <div class="cards" id="inatGrid"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnInatMore">＋ 补图 10 张</button>
+      <button id="btnInatNext" class="primary">下一只 ▶</button>
+      <button id="btnInatSkip">跳过这只</button>
+      <button id="btnInatStop" style="margin-left:auto">停止</button>
+    </div>
   </div>
 
   <div class="step">
@@ -129,6 +157,8 @@
 
 
 </div>
+
+<div id="lightbox"><img id="lightboxImg" alt=""></div>
 
 <script>
 /*!
@@ -252,11 +282,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   $('inFolder').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
   $('inFiles').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
   $('btnClear').onclick = () => {
-    folderFiles = []; map.clear(); baseMap.clear(); srcs.length = 0;
+    folderFiles = []; map.clear(); baseMap.clear(); dirMap.clear(); srcs.length = 0;
     $('srcList').innerHTML = ''; $('nameInput').value = ''; $('nameInput').dataset.user = '';
     $('btnParse').disabled = true; $('status').textContent = '';
     $('reviewStep').style.display = 'none';
-    reviewCards = []; reviewMarks = [];
+    $('inatStep').style.display = 'none'; $('inatGrid').innerHTML = '';
+    reviewCards = []; reviewMarks = []; inat = null;
   };
 
   document.querySelectorAll('#tagBox input[name=tag]').forEach(r => {
@@ -848,6 +879,288 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     renderReview();
   };
 
+  // ============ iNaturalist 按名录扒图 ============
+  const INAT_API = 'https://api.inaturalist.org/v1';
+  // 只取允许再传播/改编的许可证；ND（禁止演绎）不收，避免转 webp 侵权
+  const INAT_OK_LIC = new Set(['cc0', 'cc-by', 'cc-by-sa', 'cc-by-nc', 'cc-by-nc-sa']);
+  let inat = null;
+
+  function xdec(s) {
+    return String(s)
+      .replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (m, d) => String.fromCodePoint(+d))
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+  }
+  function colIndex(ref) { let n = 0; for (const ch of ref) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; }
+
+  // 用已有 JSZip 直接读 xlsx（sharedStrings + sheet XML），不依赖第三方库
+  async function parseBirdRows(file) {
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    const shared = [];
+    const ss = zip.file('xl/sharedStrings.xml');
+    if (ss) {
+      const xml = await ss.async('string');
+      for (const m of xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)) {
+        let t = '';
+        for (const tm of m[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)) t += xdec(tm[1]);
+        shared.push(t);
+      }
+    }
+    const sheets = Object.keys(zip.files).filter(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    if (!sheets.length) throw new Error('xlsx 里没有工作表');
+    const xml = await zip.file(sheets[0]).async('string');
+    const rows = [];
+    for (const rm of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+      const cells = [];
+      for (const cm of rm[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+        const attrs = cm[1] || '', inner = cm[2] || '';
+        const ref = (attrs.match(/r="([A-Z]+)\d+"/) || [])[1] || '';
+        const ty = (attrs.match(/t="([^"]+)"/) || [])[1] || '';
+        let v = '';
+        if (ty === 'inlineStr') {
+          for (const tm of inner.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)) v += xdec(tm[1]);
+        } else {
+          const vm = inner.match(/<v>([\s\S]*?)<\/v>/);
+          if (vm) { v = xdec(vm[1]); if (ty === 's') v = shared[+v] || ''; }
+        }
+        if (ref) cells[colIndex(ref)] = v;
+      }
+      rows.push(cells);
+    }
+    return rows;
+  }
+
+  function birdListFromRows(rows) {
+    let hdr = -1, cols = { cn: -1, en: -1, sci: -1, fam: -1 };
+    for (let i = 0; i < Math.min(rows.length, 8); i++) {
+      const r = rows[i] || [];
+      const find = re => r.findIndex(c => re.test(String(c || '')));
+      const sci = find(/学名|拉丁|scientific/i);
+      const en = find(/英文|english/i);
+      const cn = find(/最终中文名|中文名|名称/);
+      if (sci >= 0 || en >= 0 || cn >= 0) { hdr = i; cols = { cn, en, sci, fam: find(/科$|科名/) }; break; }
+    }
+    if (hdr < 0) cols = { cn: 0, en: 1, sci: 2, fam: -1 };  // 无表头：A 中文 / B 英文 / C 学名
+    const list = [];
+    for (let i = hdr + 1; i < rows.length; i++) {
+      const r = rows[i] || [];
+      const g = k => (k >= 0 ? String(r[k] || '').trim() : '');
+      const cn = g(cols.cn), en = g(cols.en), sci = g(cols.sci);
+      if (!cn && !en && !sci) continue;
+      list.push({ cn: cn || en || sci, en, sci, fam: g(cols.fam) });
+    }
+    return list;
+  }
+
+  async function inatJson(path) {
+    const r = await fetch(INAT_API + path, { headers: { accept: 'application/json' } });
+    if (!r.ok) throw new Error('iNat HTTP ' + r.status);
+    return r.json();
+  }
+
+  async function inatFindTaxon(item) {
+    for (const q of [item.sci, item.en, item.cn].filter(Boolean)) {
+      let j = null;
+      try { j = await inatJson('/taxa/autocomplete?q=' + encodeURIComponent(q) + '&locale=zh-CN&per_page=10'); } catch (e) { continue; }
+      const res = (j.results || []).filter(t => t.rank === 'species' || t.rank === 'subspecies');
+      if (!res.length) continue;
+      const ql = q.toLowerCase();
+      const hit = res.find(t => (t.name || '').toLowerCase() === ql || (t.preferred_common_name || '').toLowerCase() === ql);
+      if (hit) return hit;
+      const sp = res.find(t => t.rank === 'species');
+      return sp || res[0];
+    }
+    return null;
+  }
+
+  async function inatPhotos(taxonId, page) {
+    const j = await inatJson('/observations?taxon_id=' + taxonId + '&photos=true&per_page=50&page=' + page + '&order_by=votes');
+    const photos = [];
+    for (const o of (j.results || [])) for (const p of (o.photos || [])) {
+      if (!p.url) continue;
+      const lic = String(p.license_code || '').toLowerCase();
+      if (!INAT_OK_LIC.has(lic)) continue;
+      photos.push({ url: p.url, license: lic, attr: p.attribution || '' });
+    }
+    return { photos, more: (j.results || []).length >= 50 };
+  }
+
+  function inatStatus(msg, err) {
+    const el = $('inatStatus');
+    el.textContent = msg || '';
+    el.style.color = err ? 'var(--miss)' : '';
+  }
+
+  // 图片放大：点缩略图/卡片大图全屏查看，点任意处或 Esc 关闭
+  const lightboxEl = $('lightbox'), lightboxImg = $('lightboxImg');
+  function openZoom(src) {
+    if (!src || !lightboxEl) return;
+    lightboxImg.src = src;
+    lightboxEl.style.display = 'flex';
+  }
+  function closeZoom() {
+    if (!lightboxEl) return;
+    lightboxEl.style.display = 'none';
+    lightboxImg.src = '';
+  }
+  if (lightboxEl) lightboxEl.addEventListener('click', closeZoom);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeZoom(); });
+  document.addEventListener('click', e => {
+    const img = e.target.closest && e.target.closest('img');
+    if (!img) return;
+    if (img.closest('#inatGrid')) return; // 网格里点图=选择，放大走 🔍
+    if (img.closest('#cards') || img.closest('#marksGrid')) openZoom(img.src);
+  });
+
+  function inatRender(list, append) {
+    const start = append ? inat.shown.length : 0;
+    if (!append) inat.shown = [];
+    inat.shown.push(...list);
+    const html = list.map((p, k) => {
+      const i = start + k;
+      const full = p.url.replace('/square.', '/large.');
+      return `<div class="pick" data-i="${i}" data-id="${esc(p.id)}">
+        <div class="thumb"><img src="${esc(p.url)}" data-full="${esc(full)}" loading="lazy" alt=""><span class="tick">✓</span></div>
+        <div class="foot"><span class="info">${esc(p.license)}${p.attr ? ' · ' + esc(p.attr).slice(0, 60) : ''}</span>
+        <button class="zoom" data-full="${esc(full)}" title="放大">🔍</button></div>
+      </div>`;
+    }).join('');
+    const grid = $('inatGrid');
+    if (append) grid.insertAdjacentHTML('beforeend', html); else grid.innerHTML = html;
+  }
+
+  // 默认全不选：点图选中，再点取消；🔍 放大
+  $('inatGrid').addEventListener('click', e => {
+    if (!inat) return;
+    const z = e.target.closest('.zoom');
+    if (z) { e.stopPropagation(); openZoom(z.dataset.full); return; }
+    const card = e.target.closest('.pick');
+    if (!card) return;
+    const id = card.dataset.id;
+    if (inat.sel.has(id)) { inat.sel.delete(id); card.classList.remove('sel'); }
+    else { inat.sel.add(id); card.classList.add('sel'); }
+  });
+
+  async function inatGet(n) {
+    const out = [];
+    while (out.length < n && !inat.exhausted && inat.page <= 6) {
+      const { photos, more } = await inatPhotos(inat.taxon.id, inat.page);
+      inat.page++;
+      if (!more) inat.exhausted = true;
+      for (const p of photos) {
+        const id = (p.url.match(/photos\/(\d+)/) || [])[1] || p.url;
+        if (inat.used.has(id)) continue;
+        inat.used.add(id);
+        out.push(Object.assign({ id }, p));
+        if (out.length >= n) break;
+      }
+    }
+    return out;
+  }
+
+  async function inatLoadBird() {
+    const it = inat.list[inat.idx];
+    inat.taxon = null; inat.page = 1; inat.used = new Set(); inat.exhausted = false; inat.shown = []; inat.sel = new Set();
+    $('inatGrid').innerHTML = '';
+    $('inatSummary').innerHTML = `<div><b>${inat.idx + 1}</b> / ${inat.list.length} · ${esc(it.cn)}</div>`;
+    $('btnInatNext').disabled = true; $('btnInatMore').disabled = true;
+    inatStatus('查找「' + it.cn + '」…');
+    try {
+      const t = await inatFindTaxon(it);
+      if (!t) { inatStatus('未找到「' + it.cn + '」，可点“跳过这只”', true); return; }
+      inat.taxon = t;
+      inatStatus('「' + it.cn + '」→ ' + t.name + '，正在抓图…');
+      const first = await inatGet(10);
+      if (!first.length) { inatStatus('没有可用的开放版权图片，可跳过', true); return; }
+      inatRender(first, false);
+      $('btnInatNext').disabled = false; $('btnInatMore').disabled = false;
+      inatStatus('已抓 ' + inat.shown.length + ' 张：点图选择 → 下一只');
+    } catch (e) {
+      inatStatus('出错：' + (e && e.message ? e.message : e), true);
+    }
+  }
+
+  async function inatGoNext() {
+    if (!inat) return;
+    const it = inat.list[inat.idx];
+    const picked = inat.shown.filter(p => inat.sel.has(p.id));
+    if (!picked.length) { inatStatus('还没选照片：点缩略图选择，🔍 放大；可“跳过这只”', true); return; }
+    $('btnInatNext').disabled = true; $('btnInatMore').disabled = true;
+    let ok = 0;
+    for (let k = 0; k < picked.length; k++) {
+      inatStatus(`转换 ${k + 1}/${picked.length} 张…`);
+      try {
+        const url = picked[k].url.replace('/square.', '/large.');
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const webp = await fileToWebp(await r.blob());
+        const card = { name: it.cn, image: 'data:image/webp;base64,' + bufToB64(webp) };
+        if (it.en) card.en = it.en;
+        if (inat.taxon && inat.taxon.name) card.sci = inat.taxon.name;
+        if (it.fam) card.fam = it.fam;
+        inat.cards.push({ card, status: 'ok', raw: 'iNaturalist · ' + picked[k].license + (picked[k].attr ? ' · ' + picked[k].attr : '') });
+        ok++;
+      } catch (e) { /* 单张失败跳过 */ }
+    }
+    if (inat.idx < inat.list.length - 1) { inat.idx++; await inatLoadBird(); }
+    else inatFinish(ok);
+  }
+
+  function inatFinish(n) {
+    reviewCards = (inat.cards || []).slice();
+    reviewMarks = [];
+    currentName = (inat && inat.file) || 'iNaturalist 名录抓图';
+    currentTag = currentTagValue();
+    $('inatStep').style.display = 'none';
+    $('reviewStep').style.display = 'block';
+    renderReview();
+    $('status').textContent = `ina 抓图完成：${reviewCards.length} 张卡片，核对后可下载 JSON。`;
+    $('reviewStep').scrollIntoView({ behavior: 'smooth' });
+    inat = null;
+  }
+
+  $('btnInat').onclick = () => $('inXlsx').click();
+  $('inXlsx').onchange = async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      inatStatus('读取名录…');
+      const rows = await parseBirdRows(f);
+      const list = birdListFromRows(rows);
+      if (!list.length) throw new Error('名录里没读到鸟名');
+      inat = { file: f.name.replace(/\.xlsx$/i, ''), list, idx: 0, taxon: null, page: 1, used: new Set(), exhausted: false, shown: [], sel: new Set(), cards: [] };
+      $('inatStep').style.display = 'block';
+      $('btnInatNext').disabled = true; $('btnInatMore').disabled = true;
+      $('inatStep').scrollIntoView({ behavior: 'smooth' });
+      await inatLoadBird();
+    } catch (err) {
+      inat = null;
+      $('inatStep').style.display = 'block';
+      inatStatus('出错：' + (err && err.message ? err.message : err), true);
+    }
+  };
+  $('btnInatMore').onclick = async () => {
+    if (!inat || !inat.taxon) return;
+    $('btnInatMore').disabled = true;
+    try {
+      const more = await inatGet(10);
+      if (!more.length) { inatStatus('没有更多开放版权图片了', true); return; }
+      inatRender(more, true);
+      inatStatus('已抓 ' + inat.shown.length + ' 张（新图默认未选，点图选择）');
+    } catch (e) {
+      inatStatus('出错：' + (e && e.message ? e.message : e), true);
+    } finally { $('btnInatMore').disabled = false; }
+  };
+  $('btnInatNext').onclick = () => inatGoNext();
+  $('btnInatSkip').onclick = async () => {
+    if (!inat) return;
+    if (inat.idx < inat.list.length - 1) { inat.idx++; await inatLoadBird(); }
+    else inatFinish(0);
+  };
+  $('btnInatStop').onclick = () => { inat = null; $('inatStep').style.display = 'none'; };
+
   // ============ 测试钩子（供自动化验证，不影响正常使用） ============
   window.__test = {
     addFiles: (files) => { addFiles(files); return srcs.length; },
@@ -855,6 +1168,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     convertDocx: convertDocx,
     extractNames: extractNames,
     resolveImg: resolveImg,
+    parseBirdRows: parseBirdRows,
+    birdListFromRows: birdListFromRows,
+    inatFindTaxon: inatFindTaxon,
+    inatPhotos: inatPhotos,
   };
 })();
 </script>
