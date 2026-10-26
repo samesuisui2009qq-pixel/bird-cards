@@ -74,6 +74,10 @@
   .pick .foot { display:flex; align-items:center; gap:6px; padding:6px 8px; }
   .pick .foot .info { font-size:10px; color:var(--muted); flex:1; line-height:1.3; word-break:break-all; }
   .pick .zoom { border:none; background:transparent; color:var(--muted); cursor:zoom-in; font-size:13px; padding:0 2px; }
+  .jcard { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:#fff; }
+  .jcard img { width:100%; height:110px; object-fit:cover; display:block; background:#111; cursor:zoom-in; }
+  .jcard .n { font-size:12px; font-weight:600; padding:6px 8px 2px; line-height:1.3; }
+  .jcard .s { font-size:10px; color:var(--muted); padding:0 8px 8px; line-height:1.3; }
   #lightbox { position:fixed; inset:0; background:rgba(0,0,0,.9); display:none; align-items:center; justify-content:center; z-index:99; cursor:zoom-out; }
   #lightbox img { max-width:96vw; max-height:94vh; object-fit:contain; box-shadow:0 8px 40px rgba(0,0,0,.6); }
   .card img, .mark-item img { cursor:zoom-in; }
@@ -91,12 +95,14 @@
     <div class="row">
       <button id="btnFolder" class="primary">📁 选择文件夹</button>
       <button id="btnFiles">📄 添加单个文件</button>
-      <button id="btnClear">清空</button>
       <button id="btnInat" title="按鸟类名录从 iNaturalist 逐鸟扒图">🐦 ina</button>
+      <button id="btnJson" title="预览生成的 bird JSON">🖼 json预览</button>
+      <button id="btnClear">清空</button>
     </div>
     <input type="file" id="inFolder" webkitdirectory hidden>
     <input type="file" id="inFiles" multiple accept=".html,.htm,.docx" hidden>
     <input type="file" id="inXlsx" accept=".xlsx" hidden>
+    <input type="file" id="inJson" accept=".json" hidden>
     <div class="list" id="srcList"></div>
     <div class="hint">选「文件夹」可一次读入整篇文章（网页 + 图片）。<br>也支持直接选 .html / .docx 文件。</div>
   </div>
@@ -113,6 +119,13 @@
       <button id="btnInatSkip">跳过这只</button>
       <button id="btnInatStop" style="margin-left:auto">停止</button>
     </div>
+  </div>
+
+  <div class="step" id="jsonStep" style="display:none">
+    <h2><span class="num">J</span>JSON 预览 <span id="jsonInfo" class="hint" style="margin-left:8px"></span>
+      <button id="btnJsonClose" style="float:right">关闭预览</button>
+    </h2>
+    <div class="cards" id="jsonCards"></div>
   </div>
 
   <div class="step">
@@ -287,6 +300,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('btnParse').disabled = true; $('status').textContent = '';
     $('reviewStep').style.display = 'none';
     $('inatStep').style.display = 'none'; $('inatGrid').innerHTML = '';
+    $('jsonStep').style.display = 'none'; $('jsonCards').innerHTML = ''; $('jsonInfo').textContent = '';
     reviewCards = []; reviewMarks = []; inat = null;
   };
 
@@ -590,6 +604,24 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     );
   }
 
+  // 卡片缩略图（Word / iNaturalist 选图后统一压缩）：长边 480、WebP 0.65
+  // 辨识点 / 辨识图不走这里，仍用 fileToLossless 全分辨率无损
+  function fileToCardThumb(file, max = 480, quality = 0.65) {
+    return file.arrayBuffer().then(buf =>
+      createImageBitmap(new Blob([buf])).then(bmp => {
+        const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(bmp.width * scale));
+        c.height = Math.max(1, Math.round(bmp.height * scale));
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(bmp, 0, 0, c.width, c.height);
+        bmp.close && bmp.close();
+        return new Promise(res => c.toBlob(res, 'image/webp', quality));
+      }).then(b => b.arrayBuffer())
+    );
+  }
+
   function bufToB64(buf) {
     const bytes = new Uint8Array(buf);
     let bin = '';
@@ -709,7 +741,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (nameArea.length > MAX_CAPTION && !splitSubspecies(nameArea)) { notes.push(`[${i}] 图注过长（疑似正文），跳过`); continue; }
       const r = extractNames(label);
       if (!r) { notes.push(`[${i}] 图注「${label}」无鸟名，跳过`); continue; }
-      const webp = await new Promise(res => createImageBitmap(new Blob([data])).then(bmp => { const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0); return new Promise(r2 => c.toBlob(r2, 'image/webp', 0.82)); }).then(b => b.arrayBuffer()).then(res));
+      const webp = await fileToCardThumb(new Blob([data]));
       const card = { name: r.name, image: 'data:image/webp;base64,' + bufToB64(webp) };
       if (r.rec) { if (r.rec.e) card.en = r.rec.e; if (r.rec.s) card.sci = r.rec.s; if (r.rec.f) card.fam = r.rec.f; }
       cards.push({ card, status: r.status, raw: label });
@@ -1010,7 +1042,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const img = e.target.closest && e.target.closest('img');
     if (!img) return;
     if (img.closest('#inatGrid')) return; // 网格里点图=选择，放大走 🔍
-    if (img.closest('#cards') || img.closest('#marksGrid')) openZoom(img.src);
+    if (img.closest('#cards') || img.closest('#marksGrid') || img.closest('#jsonCards')) openZoom(img.src);
   });
 
   function inatRender(list, append) {
@@ -1094,7 +1126,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         const url = picked[k].url.replace('/square.', '/large.');
         const r = await fetch(url);
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        const webp = await fileToWebp(await r.blob());
+        const webp = await fileToCardThumb(await r.blob());
         const card = { name: it.cn, image: 'data:image/webp;base64,' + bufToB64(webp) };
         if (it.en) card.en = it.en;
         if (inat.taxon && inat.taxon.name) card.sci = inat.taxon.name;
@@ -1160,6 +1192,30 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     else inatFinish(0);
   };
   $('btnInatStop').onclick = () => { inat = null; $('inatStep').style.display = 'none'; };
+
+  // ============ JSON 预览 ============
+  $('btnJson').onclick = () => $('inJson').click();
+  $('inJson').onchange = async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      const cards = d.cards || [];
+      $('jsonInfo').textContent = `${d.name || f.name} · ${cards.length} 张 · ${(f.size / 1048576).toFixed(2)} MB`;
+      $('jsonCards').innerHTML = cards.map(c => `
+        <div class="jcard">
+          <img src="${c.image}" alt="" loading="lazy">
+          <div class="n">${esc(c.name)}</div>
+          <div class="s">${esc(c.sci || '')}${c.en ? ' · ' + esc(c.en) : ''}</div>
+        </div>`).join('');
+      $('jsonStep').style.display = 'block';
+      $('jsonStep').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      alert('JSON 解析失败：' + (err && err.message ? err.message : err));
+    }
+  };
+  $('btnJsonClose').onclick = () => { $('jsonStep').style.display = 'none'; };
 
   // ============ 测试钩子（供自动化验证，不影响正常使用） ============
   window.__test = {
