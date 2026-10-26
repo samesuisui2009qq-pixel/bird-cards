@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鸟类卡片组生成器</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --border:#e3e6ea; --ink:#1f2329; --muted:#7a828c; --brand:#0f6cbd; --ok:#1a9e50; --warn:#e08a00; --miss:#d24a4a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:14px 20px; }
+  header h1 { margin:0; font-size:18px; font-weight:600; }
+  header p { margin:4px 0 0; font-size:12px; opacity:.85; }
+  .wrap { max-width:820px; margin:0 auto; padding:16px; }
+  .step { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .step h2 { margin:0 0 10px; font-size:15px; }
+  .step h2 .num { display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; background:var(--brand); color:#fff; border-radius:50%; font-size:13px; margin-right:6px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button { cursor:pointer; border:1px solid var(--brand); background:#fff; color:var(--brand); border-radius:8px; padding:8px 14px; font-size:13px; }
+  button:hover { background:#eef6ff; }
+  button.primary { background:var(--brand); color:#fff; }
+  button.primary:hover { background:#0b5ea3; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .radio { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:14px; }
+  .radio input { accent-color:var(--brand); }
+  .radio.on { border-color:var(--brand); background:#eef6ff; }
+  input[type=text] { border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:14px; flex:1; min-width:200px; }
+  .list { margin-top:10px; }
+  .src { display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; margin-bottom:6px; }
+  .src label { display:flex; align-items:center; gap:10px; cursor:pointer; flex:1; }
+  .src input[type=checkbox] { width:18px; height:18px; accent-color:var(--brand); }
+  .src .nm { font-size:14px; font-weight:500; }
+  .src .kind { font-size:11px; color:var(--muted); }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.6; }
+  #status { font-size:13px; color:var(--muted); min-height:20px; }
+  #status.err { color:var(--miss); }
+  #result { display:none; }
+  .summary { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; margin-bottom:10px; }
+  .summary b { font-size:18px; }
+  .badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; color:#fff; }
+  .b-ok { background:var(--ok); } .b-alias { background:var(--warn); } .b-miss { background:var(--miss); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
+  .card { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:#fff; }
+  .card img { width:100%; height:110px; object-fit:cover; display:block; background:#111; }
+  .card .cn { font-size:12px; padding:6px 8px 2px; font-weight:600; line-height:1.4; }
+  .card .meta { font-size:10px; color:var(--muted); padding:0 8px 8px; }
+  .legend { font-size:12px; color:var(--muted); margin:8px 0; }
+  .card .head { display:flex; align-items:center; gap:4px; padding:6px 8px 2px; }
+  .card .head .st { flex-shrink:0; }
+  .card input.name { width:100%; border:1px solid transparent; border-radius:6px; padding:4px 6px; font-size:12px; font-weight:600; background:transparent; }
+  .card input.name:hover { border-color:var(--border); background:#fff; }
+  .card input.name:focus { border-color:var(--brand); background:#fff; outline:none; }
+  .card .del { margin-left:auto; border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:14px; padding:0 4px; }
+  .card .del:hover { color:var(--miss); }
+  .card .raw { font-size:9px; color:var(--muted); padding:0 8px 6px; word-break:break-all; }
+  .card.removed { display:none; }
+  .marks-block { margin-top:16px; padding-top:14px; border-top:1px solid var(--border); }
+  .marks-block .mb-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .marks-block .mb-head .t { font-size:14px; font-weight:600; }
+  .marks-block .mb-head .c { font-size:12px; color:var(--muted); }
+  .marks-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+  .mark-item { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:#fff; }
+  .mark-item img { width:100%; height:150px; object-fit:contain; display:block; background:#111; cursor:zoom-in; }
+  .mark-item .foot { display:flex; align-items:center; gap:6px; padding:6px 8px; }
+  .mark-item .foot .info { font-size:10px; color:var(--muted); flex:1; }
+  .mark-item .foot .del { border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:14px; padding:0 4px; }
+  .mark-item .foot .del:hover { color:var(--miss); }
+</style>
+</head>
+<body>
+<header>
+  <h1>鸟类卡片组生成器</h1>
+  <p>公众号推文 / Word 文档 → GitHub 可上传的卡片组 JSON</p>
+</header>
+<div class="wrap">
+
+  <div class="step">
+    <h2><span class="num">1</span>选择来源（公众号网页 / Word 文档）</h2>
+    <div class="row">
+      <button id="btnFolder" class="primary">📁 选择文件夹</button>
+      <button id="btnFiles">📄 添加单个文件</button>
+      <button id="btnClear">清空</button>
+    </div>
+    <input type="file" id="inFolder" webkitdirectory hidden>
+    <input type="file" id="inFiles" multiple accept=".html,.htm,.docx" hidden>
+    <div class="list" id="srcList"></div>
+    <div class="hint">选「文件夹」可一次读入整篇文章（网页 + 图片）。<br>也支持直接选 .html / .docx 文件。</div>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">2</span>打标签</h2>
+    <div class="row" id="tagBox">
+      <label class="radio on"><input type="radio" name="tag" value="本地鸟种" checked> 本地鸟种</label>
+      <label class="radio"><input type="radio" name="tag" value="辨识"> 辨识</label>
+    </div>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">3</span>命名并抓取</h2>
+    <div class="row">
+      <input type="text" id="nameInput" placeholder="合并后的文件名，如：海南：越冬">
+      <button id="btnParse" class="primary" disabled>🔍 抓取</button>
+    </div>
+    <div class="hint">勾选多个来源时，会合并成这一个文件。抓取后可人工核对、改鸟名、删错误卡片。</div>
+    <div id="status"></div>
+  </div>
+
+  <div class="step" id="reviewStep" style="display:none">
+    <h2><span class="num">4</span>人工核对 <span id="reviewHint" class="hint" style="margin-left:8px"></span></h2>
+    <div class="summary" id="summary"></div>
+    <div class="legend">点鸟名可直接修改；点「✕」删除这张卡。✅ 名录一致　🟠 名录近似　🔴 名录未收录</div>
+    <div class="row" style="margin-bottom:10px">
+      <button id="btnDownload" class="primary">⬇ 下载 JSON</button>
+      <button id="btnReparse">↻ 重新抓取</button>
+      <button id="btnRemoveAll">🗑 全部删除</button>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="marks-block" id="marksBlock" style="display:none">
+      <div class="mb-head">
+        <span class="t">🔍 辨识点</span>
+        <span class="c" id="marksCount"></span>
+        <button id="btnAddMark" style="margin-left:auto">＋ 上传辨识点图</button>
+        <input type="file" id="inMark" multiple accept="image/*" hidden>
+      </div>
+      <div class="marks-grid" id="marksGrid"></div>
+      <div class="hint">辨识点图按全分辨率、无损保存（放大不失真）。可本地上传补充，也可点「✕」删除。</div>
+    </div>
+  </div>
+
+
+</div>
+
+<script>
+/*__JSZIP__*/
+</script>
+<script>
+/*__BIRD_TAXO__*/
+
+(function () {
+  'use strict';
+
+  // ============ 懂鸟名录（IOC 14.1） ============
+  const BIRD_TAXO = /*__TAXO_OBJ__*/;
+  const BIRD_NAMES = Object.keys(BIRD_TAXO).sort((a, b) => b.length - a.length);
+  const BIRD_SET = new Set(BIRD_NAMES);
+
+  // ============ 状态 ============
+  let folderFiles = [];   // {file, rel}
+  const map = new Map();   // rel -> file
+  const baseMap = new Map(); // basename -> file
+
+  const srcs = [];         // {kind:'html'|'docx', name, file, rel}
+
+  const $ = id => document.getElementById(id);
+
+  // ============ 文件收集 ============
+  function addFiles(list) {
+    for (const f of list) {
+      let rel = (f.webkitRelativePath || f.name || '').replace(/\\/g, '/').replace(/^\.\/+/, '');
+      folderFiles.push({ file: f, rel });
+      map.set(rel, f);
+      const base = rel.split('/').pop();
+      if (base && !baseMap.has(base)) baseMap.set(base, f);
+    }
+    rescan();
+  }
+
+  function rescan() {
+    srcs.length = 0;
+    const seen = new Set();
+    for (const { file, rel } of folderFiles) {
+      const name = rel.split('/').pop() || file.name;
+      if (/\.html?$/i.test(name) && !seen.has(rel)) {
+        seen.add(rel);
+        srcs.push({ kind: 'html', name: name.replace(/\.html?$/i, ''), file, rel });
+      } else if (/\.docx$/i.test(name) && !seen.has(rel)) {
+        seen.add(rel);
+        srcs.push({ kind: 'docx', name: name.replace(/\.docx$/i, ''), file, rel });
+      }
+    }
+    renderSrcs();
+  }
+
+  function renderSrcs() {
+    const box = $('srcList');
+    if (!srcs.length) {
+      box.innerHTML = '<div class="hint">还没检测到网页或 Word 文档。</div>';
+      $('btnParse').disabled = true;
+      return;
+    }
+    box.innerHTML = srcs.map((s, i) => `
+      <div class="src">
+        <label>
+          <input type="checkbox" data-i="${i}">
+          <span class="nm">${esc(s.name)}</span>
+          <span class="kind">${s.kind === 'html' ? '公众号网页' : 'Word 文档'}</span>
+        </label>
+      </div>`).join('');
+    box.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.addEventListener('change', () => { updateName(); updateGo(); });
+    });
+    updateGo();
+  }
+
+  function selectedSrcs() {
+    const out = [];
+    $('srcList').querySelectorAll('input[type=checkbox]').forEach(cb => {
+      if (cb.checked) out.push(srcs[+cb.dataset.i]);
+    });
+    return out;
+  }
+
+  function updateGo() {
+    $('btnParse').disabled = selectedSrcs().length === 0;
+  }
+
+  function updateName() {
+    const sel = selectedSrcs();
+    if (sel.length === 1) $('nameInput').value = sel[0].name;
+    else if (sel.length > 1 && !$('nameInput').dataset.user) $('nameInput').value = '';
+  }
+
+  $('nameInput').addEventListener('input', () => { $('nameInput').dataset.user = '1'; });
+
+  // ============ 事件 ============
+  $('btnFolder').onclick = () => $('inFolder').click();
+  $('btnFiles').onclick = () => $('inFiles').click();
+  $('inFolder').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+  $('inFiles').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+  $('btnClear').onclick = () => {
+    folderFiles = []; map.clear(); baseMap.clear(); srcs.length = 0;
+    $('srcList').innerHTML = ''; $('nameInput').value = ''; $('nameInput').dataset.user = '';
+    $('btnParse').disabled = true; $('status').textContent = '';
+    $('reviewStep').style.display = 'none';
+    reviewCards = []; reviewMarks = [];
+  };
+
+  document.querySelectorAll('#tagBox input[name=tag]').forEach(r => {
+    r.addEventListener('change', () => {
+      document.querySelectorAll('#tagBox .radio').forEach(l => l.classList.remove('on'));
+      if (r.checked) r.closest('.radio').classList.add('on');
+    });
+  });
+
+  // ============ 文本清理 ============
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  const PREFIX_SYM = '▲△▼▽●○◆◇■□★☆※→←↑↓·•';
+  // 鸟名尾字（鸟部首的字），用于判断「这到底是不是鸟名」
+  const BIRD_TAIL = '鹛鸮鹃鸫鹟雀鹎鸦鸲鸠鹬鹮鹭鹳鹰隼鹗燕莺鸡雉鸭雁鹤鹈鹕鸬鹚鸊鷉鹨鹧鸪鹑鸢鹫雕鹞枭鸽鹇鹌鸥鸻鹀鹩鸰鹡翠尾啄鸦雀鸻鹳鹬鵙鸢雕隼鹞鸮鸺鹠鸱鹡鹭鹛鹃鹀鹎鹟鸫鸠鹩鹌鹑鹧鸪鹫鹇鹕鹲鹱鹳鹚鸬䴓鳽鹊鸲鸫鸊鸬鹩鹮鹳鹊鸦鹃鸺鹠';
+  const VARIANT = { '鶲':'鹟','鶪':'鹪','鷺':'鹭','鷙':'鹩','鶩':'鹜','鸝':'鸲','鵯':'鹎','鵲':'鹊','鶇':'鸫','鵐':'鹀','鵑':'鹃','鷓':'鹧','鵪':'鹌','鶉':'鹑','鴉':'鸦','鵁':'鹱','鶘':'鹕','鸕':'鸬','鶿':'鹚','鸛':'鹳','鵒':'鹆','鶓':'鹋','鴰':'鹝','鶥':'鹛','鵮':'鹩','鸌':'鹴','鵏':'鹲','鵞':'鹘','鸇':'鹯','鵙':'鹱','鳾':'䴓' };
+  const MARKS = ['雄', '雌', '幼'];
+
+  function normalize(s) { return s ? s.split('').map(c => VARIANT[c] || c).join('') : s; }
+  function stripSymbols(s) { let t = (s || '').trim(); while (t && PREFIX_SYM.includes(t[0])) t = t.slice(1).trim(); return t; }
+  function stripEnglish(s) { if (!s) return s; const toks = s.split(/\s+/).filter(t => t && !/^[\x00-\x7F]+$/.test(t)); const r = toks.join(' ').trim(); return r || s; }
+  function stripMarks(s) {
+    let t = (s || '');
+    t = t.replace(/[（(][^）)]*[）)]/g, '');
+    let prev = null;
+    while (prev !== t) {
+      prev = t;
+      t = t.replace(/[▲△▼▽●○◆◇■□★☆※→←↑↓·• 　、,，;；/\\|]+$/g, '');
+      for (const m of MARKS) {
+        if (t.endsWith(m) && t.length > m.length + 1) t = t.slice(0, -m.length).replace(/[▲△▼▽●○◆◇■□★☆※→←↑↓·• 　、,，;；/\\|]+$/g, '');
+      }
+    }
+    return t.trim() || s;
+  }
+
+  // 识别亚种后缀，返回 { base, display } 或 null
+  //   「白鹇whiteheadi亚种」 → base=白鹇, display=白鹇（whiteheadi亚种）
+  //   「长嘴钩嘴鹛hainana亚种」 → base=长嘴钩嘴鹛, display=长嘴钩嘴鹛（hainana亚种）
+  //   「白翅蓝鹊 海南亚种」 → base=白翅蓝鹊, display=白翅蓝鹊（海南亚种）
+  function splitSubspecies(p) {
+    if (!p) return null;
+    // 1) 中文名 + 英文亚种 + 亚种（无空格）：白鹇whiteheadi亚种
+    let m = p.match(/^([\u4e00-\u9fff]{2,10})([a-z]+)亚种$/i);
+    if (m) return { base: m[1], display: m[1] + '（' + m[2] + '亚种）' };
+    // 2) 中文名 + 空格 + 亚种名：白翅蓝鹊 海南亚种
+    m = p.match(/^([\u4e00-\u9fff]{2,10})\s+(\S+亚种)$/);
+    if (m) return { base: m[1], display: m[1] + '（' + m[2] + '）' };
+    return null;
+  }
+
+  function cutPrefix(p) {
+    if (!p || BIRD_SET.has(p)) return null;
+    for (const sep of '-－—–_·:：/|｜ 　') {
+      if (p.includes(sep)) {
+        const tail = p.split(sep).pop().trim();
+        if (tail.length >= 2 && BIRD_SET.has(tail)) return tail;
+      }
+    }
+    for (const m of ['的','拍摄','摄于','摄影','记录','见到','观察','图','之一','等','和','与','及']) {
+      const i = p.lastIndexOf(m);
+      if (i > 0) {
+        const tail = p.slice(i + m.length).trim();
+        if (tail.length >= 2 && BIRD_SET.has(tail)) return tail;
+      }
+    }
+    return null;
+  }
+
+  function findSub(p) {
+    for (const n of BIRD_NAMES) {
+      if (n.length < 2) break;
+      if (n !== p && (p.includes(n) || n.includes(p))) return n;
+    }
+    return null;
+  }
+
+  function isKnown(t) {
+    return BIRD_SET.has(t) || BIRD_SET.has(normalize(t)) || findSub(t) != null;
+  }
+
+  function checkOne(p) {
+    p = stripSymbols(p);
+    // 亚种：识别「中文名+英文亚种名+亚种」或「中文名 亚种名亚种」
+    // 例：白鹇whiteheadi亚种 → 显示 白鹇（whiteheadi亚种），检索只查 白鹇
+    const ss = splitSubspecies(p);
+    if (ss) {
+      const base = ss.base;
+      if (BIRD_SET.has(base)) {
+        return { name: ss.display, status: 'ok', matched: base };
+      }
+      const bn = normalize(base);
+      if (BIRD_SET.has(bn)) {
+        return { name: ss.display, status: 'alias', matched: bn };
+      }
+      // 鸟名本体不在名录，但整体尾字是鸟 → 保留显示名，标 miss
+      if (BIRD_TAIL.includes(normalize(base.slice(-1)))) {
+        return { name: ss.display, status: 'miss', matched: null };
+      }
+    }
+    p = stripEnglish(p);
+    p = p.replace(/(混群|混飞|同框|等鸟|群飞|等|等等)+$/g, '').trim();
+    if (!p) return null;
+    // 末尾字必须是鸟名尾字，否则当作非鸟类跳过（亚洲象、圆鼻巨蜥等）
+    // 注意：用 normalize 后的尾字判断，兼容异体字（鳾→䴓）
+    const tail = normalize(p.slice(-1));
+    if (!BIRD_TAIL.includes(tail) && !BIRD_SET.has(p) && !BIRD_SET.has(normalize(p))) {
+      return null;
+    }
+
+    if (p.includes('与') && !BIRD_SET.has(p)) {
+      const subs = p.split('与').map(x => x.trim()).filter(Boolean);
+      if (subs.length > 1 && subs.every(x => BIRD_SET.has(x))) {
+        return { name: subs.join('、'), status: 'ok', matched: subs.join('、') };
+      }
+    }
+
+    let p2 = stripMarks(p);
+    if (p2 !== p) p = p2;
+
+    if (p.includes(' ')) {
+      const toks = p.split(/\s+/).filter(Boolean);
+      if (toks.length === 2 && toks[1].endsWith('亚种') && BIRD_SET.has(toks[0])) {
+        return { name: p, status: 'alias', matched: toks[0] };
+      }
+    }
+
+    const p3 = normalize(p);
+    if (p3 !== p && BIRD_SET.has(p3)) {
+      return { name: p, status: 'alias', matched: p3 };
+    }
+
+    if (BIRD_SET.has(p)) return { name: p, status: 'ok', matched: p };
+
+    if (p.includes(' ')) {
+      const toks = p.split(/\s+/).filter(Boolean);
+      if (toks.length > 1 && toks.every(isKnown)) {
+        const allOk = toks.every(t => BIRD_SET.has(t));
+        return { name: toks.join('、'), status: allOk ? 'ok' : 'alias', matched: toks.join('、') };
+      }
+    }
+
+    const cut = cutPrefix(p);
+    if (cut) return { name: cut, status: 'ok', matched: cut };
+
+    // 原文包含名录名（描述前缀 + 鸟名），用名录名本体
+    // 例：特有种海南山鹧鸪 → 海南山鹧鸪
+    const sub = findSub(p);
+    if (sub) {
+      // 名录名是原文的子串 → 剥掉描述性前后缀，取名录名
+      if (p.includes(sub)) return { name: sub, status: 'ok', matched: sub };
+      // 原文是名录名的子串（异体/缩写）→ 保留原文，标近似
+      return { name: p, status: 'alias', matched: sub };
+    }
+
+    return { name: p, status: 'miss', matched: null };
+  }
+
+  function extractNames(caption) {
+    let work = (caption || '').trim();
+    // 1) 按摄影者标记切掉（© / ©️ / 摄影 / 摄于 / 拍摄 / 图源 / 图片）——取标记前的部分
+    for (const marker of ['©️', '©', '摄影', '摄于', '拍摄', '图源', '图片：', '图片:']) {
+      const i = work.indexOf(marker);
+      if (i >= 0) { work = work.slice(0, i).trim(); break; }
+    }
+    // 2) 再按 / 切（越冬那种「鸟名/摄影者」）
+    for (const sep of ['/', '／']) {
+      const i = work.indexOf(sep);
+      if (i >= 0) { work = work.slice(0, i).trim(); break; }
+    }
+    const parts = work.split(/[、,，;；]/).map(x => x.trim()).filter(Boolean);
+    const hits = [];
+    for (const p of parts) { const r = checkOne(p); if (r) hits.push(r); }
+    if (!hits.length) return null;
+    const name = hits.map(h => h.name).join('、');
+    const status = hits.every(h => h.status === 'ok') ? 'ok'
+      : hits.some(h => h.status === 'miss') ? 'miss' : 'alias';
+    const rec = BIRD_TAXO[hits[0].matched] || {};
+    return { name, status, rec, hits };
+  }
+
+  // ============ HTML 解析 ============
+  function flatten(root) {
+    const out = [];
+    (function walk(el) {
+      const tag = el.nodeType === 1 ? el.tagName.toLowerCase() : '';
+      if (tag === 'img') out.push({ t: 'img', el });
+      else if (tag === 'br') out.push({ t: 'text', s: '\n' });
+      else {
+        if (el.nodeType === 3) { out.push({ t: 'text', s: el.nodeValue }); return; }
+        for (const ch of el.childNodes) {
+          walk(ch);
+          if (ch.nodeType === 1 && ch.tagName && ch.tagName.toLowerCase() !== 'br') {
+            // tail handled via nextSibling text nodes in childNodes iteration
+          }
+        }
+      }
+    })(root);
+    // re-walk to capture text order properly
+    const out2 = [];
+    (function walk2(el) {
+      if (el.nodeType === 3) { out2.push({ t: 'text', s: el.nodeValue }); return; }
+      if (el.nodeType !== 1) return;
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'img') { out2.push({ t: 'img', el }); return; }
+      if (tag === 'br') { out2.push({ t: 'text', s: '\n' }); return; }
+      for (const ch of el.childNodes) walk2(ch);
+    })(root);
+    return out2;
+  }
+
+  function groupPairs(root) {
+    const ev = flatten(root);
+    const pairs = [];
+    let buf = [], lastImg = null;
+    for (const { t, el, s } of ev) {
+      if (t === 'img') {
+        if (lastImg) pairs.push([lastImg, buf.join('')]);
+        lastImg = el; buf = [];
+      } else buf.push(s);
+    }
+    if (lastImg) pairs.push([lastImg, buf.join('')]);
+    return pairs;
+  }
+
+  function firstLine(t, maxlen = 60) {
+    const clean = (t || '').replace(/[ \t\u00a0\u3000]+/g, ' ').replace(/\n+/g, '\n').trim();
+    if (!clean) return '';
+    for (const line of clean.split('\n')) if (line.trim()) return line.trim().slice(0, maxlen);
+    return clean.slice(0, maxlen);
+  }
+
+  const NOISE = ['往期','行程','费用','报名','招募','联系','扫码','关注','二维码','长按','识别','客服','领队','价格','元/','机票','房差','注意事项','地图','路线','示意','logo','LOGO','公众号','转载','目标鸟种','鸣凤谷','自然观察','热爱','拍摄过程','摄影作品','全程','接团','送团'];
+  const STOP_WORDS = ['兽类','两爬','哺乳','两栖','爬行','昆虫','植物'];
+
+  function resolveImg(el) {
+    let src = el.getAttribute('src') || el.getAttribute('data-src') || '';
+    if (!src) return null;
+    src = src.replace(/\\/g, '/');
+    let rel = src.replace(/^\.\/+/, '').replace(/^\/+/, '');
+    if (map.has(rel)) return map.get(rel);
+    const base = rel.split('/').pop();
+    if (base && baseMap.has(base)) return baseMap.get(base);
+    return null;
+  }
+
+  // ============ 图片 → WebP base64 ============
+  function loadImageSize(file) {
+    return file.arrayBuffer().then(buf => {
+      const url = URL.createObjectURL(new Blob([buf]));
+      return new Promise(res => {
+        const im = new Image();
+        im.onload = () => { const r = { w: im.naturalWidth, h: im.naturalHeight, url }; res(r); };
+        im.onerror = () => res(null);
+        im.src = url;
+      });
+    });
+  }
+
+  function fileToWebp(file, maxW = 1080, quality = 0.82) {
+    return file.arrayBuffer().then(buf =>
+      createImageBitmap(new Blob([buf])).then(bmp => {
+        const scale = Math.min(1, maxW / bmp.width);
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(bmp.width * scale));
+        c.height = Math.max(1, Math.round(bmp.height * scale));
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(bmp, 0, 0, c.width, c.height);
+        bmp.close && bmp.close();
+        return new Promise(res => c.toBlob(res, 'image/webp', quality));
+      }).then(b => b.arrayBuffer())
+    );
+  }
+
+  function bufToB64(buf) {
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+
+  // 辨识点图：全分辨率 + 无损，放大后才清晰
+  // 在无损 WebP 和 PNG 里挑体积小的，像素完全一致
+  function fileToLossless(file) {
+    return file.arrayBuffer().then(buf =>
+      createImageBitmap(new Blob([buf])).then(bmp => {
+        const c = document.createElement('canvas');
+        c.width = bmp.width; c.height = bmp.height;   // 不缩放
+        const ctx = c.getContext('2d');
+        ctx.drawImage(bmp, 0, 0);
+        bmp.close && bmp.close();
+        return Promise.all([
+          new Promise(r => c.toBlob(r, 'image/webp', 1.0)),
+          new Promise(r => c.toBlob(r, 'image/png')),
+        ]).then(([w, p]) => {
+          let blob = w, fmt = 'webp';
+          if (!w || (p && p.size < w.size)) { blob = p; fmt = 'png'; }
+          return blob.arrayBuffer().then(ab => ({ buf: ab, fmt, size: blob.size }));
+        });
+      })
+    );
+  }
+
+  // ============ 文章转换 ============
+  async function convertHtml(srcFile) {
+    const text = await srcFile.text();
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    let root = doc.getElementById('js_content') || doc.querySelector('.rich_media_content');
+    if (!root) return { cards: [], notes: [] };
+
+    const pairs = groupPairs(root);
+    const cards = [], notes = [];
+    let stop = false;
+    for (let i = 0; i < pairs.length; i++) {
+      const [imgEl, capRaw] = pairs[i];
+      const cap = firstLine(capRaw);
+      if (!cap) continue;
+      if (STOP_WORDS.some(w => cap.includes(w))) { notes.push(`[${i}] 遇到非鸟类章节「${cap.slice(0, 12)}」，停止`); break; }
+      const f = resolveImg(imgEl);
+      if (!f) { notes.push(`[${i}] 无本地图片，跳过`); continue; }
+      const sz = await loadImageSize(f);
+      if (!sz) { notes.push(`[${i}] 图片读不了，跳过`); continue; }
+      URL.revokeObjectURL(sz.url);
+      if (sz.w < 220 || sz.h < 220) { notes.push(`[${i}] ${sz.w}x${sz.h} 太小（装饰图），跳过`); continue; }
+      if (NOISE.some(w => cap.includes(w))) { notes.push(`[${i}] 非鸟图注「${cap.slice(0, 24)}」，跳过`); continue; }
+
+      const r = extractNames(cap);
+      if (!r) { notes.push(`[${i}] 图注里没有鸟名，跳过`); continue; }
+
+      const webp = await fileToWebp(f);
+      const card = { name: r.name, image: 'data:image/webp;base64,' + bufToB64(webp) };
+      if (r.rec) {
+        if (r.rec.e) card.en = r.rec.e;
+        if (r.rec.s) card.sci = r.rec.s;
+        if (r.rec.f) card.fam = r.rec.f;
+      }
+      cards.push({ card, status: r.status, raw: cap });
+    }
+    return { cards, notes };
+  }
+
+  // ============ Word 转换（JSZip） ============
+  const NS = { w: 'http://schemas.openxmlformats.org/wordprocessingml/2006/main', a: 'http://schemas.openxmlformats.org/drawingml/2006/main', r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships' };
+  function tag(n) { return n.split(':').pop(); }
+
+  async function convertDocx(file) {
+    if (typeof JSZip === 'undefined') return { cards: [], marks: [], notes: ['未加载 JSZip，无法解析 Word'] };
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    const docXml = await zip.file('word/document.xml').async('string');
+    const relsXml = await zip.file('word/_rels/document.xml.rels').async('string');
+    const rels = new Map();
+    Array.from(new DOMParser().parseFromString(relsXml, 'application/xml').getElementsByTagName('Relationship')).forEach(el => rels.set(el.getAttribute('Id'), el.getAttribute('Target')));
+    const doc = new DOMParser().parseFromString(docXml, 'application/xml');
+    const cards = [], marks = [], notes = [];
+    // 遍历 body 直接子节点顺序：drawing 后紧跟文字
+    const body = doc.getElementsByTagNameNS(NS.w, 'body')[0] || doc.getElementsByTagName('w:body')[0] || doc.body;
+    const kids = body ? Array.from(body.childNodes) : [];
+    for (let i = 0; i < kids.length; i++) {
+      const p = kids[i];
+      if (p.nodeType !== 1 || tag(p.nodeName) !== 'p') continue;
+      const draw = p.getElementsByTagNameNS(NS.a, 'blip')[0] || p.getElementsByTagName('a:blip')[0];
+      if (!draw) continue;
+      const rid = draw.getAttributeNS(NS.r, 'embed') || draw.getAttribute('r:embed') || draw.getAttribute('embed');
+      const target = rels.get(rid);
+      if (!target) continue;
+      const mediaPath = 'word/' + target.replace(/^word\//, '');
+      let label = '';
+      for (let k = i + 1; k < kids.length; k++) {
+        const t = kids[k].getElementsByTagNameNS(NS.w, 't')[0] || kids[k].getElementsByTagName('w:t')[0];
+        if (t && t.textContent.trim()) { label = t.textContent.trim(); break; }
+      }
+      const data = await zip.file(mediaPath).async('arraybuffer');
+      if (!data) continue;
+      const sz = await (async () => { const url = URL.createObjectURL(new Blob([data])); return new Promise(res => { const im = new Image(); im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => res(null); im.src = url; }); })();
+      if (!sz || sz.w < 220 || sz.h < 220) continue;
+
+      // 辨识点图：标题含「辨识点」或「辨识图」→ 无损、全分辨率，进 marks
+      if (/辨识点|辨识图/.test(label)) {
+        const lf = await fileToLossless(new Blob([data]));
+        marks.push('data:image/' + lf.fmt + ';base64,' + bufToB64(lf.buf));
+        notes.push(`[${i}] 辨识点图 ${sz.w}x${sz.h} 无损${lf.fmt} -> ${(lf.buf.byteLength / 1024).toFixed(0)} KB`);
+        continue;
+      }
+
+      const r = extractNames(label);
+      if (!r) { notes.push(`[${i}] 图注「${label}」无鸟名，跳过`); continue; }
+      const webp = await new Promise(res => createImageBitmap(new Blob([data])).then(bmp => { const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0); return new Promise(r2 => c.toBlob(r2, 'image/webp', 0.82)); }).then(b => b.arrayBuffer()).then(res));
+      const card = { name: r.name, image: 'data:image/webp;base64,' + bufToB64(webp) };
+      if (r.rec) { if (r.rec.e) card.en = r.rec.e; if (r.rec.s) card.sci = r.rec.s; if (r.rec.f) card.fam = r.rec.f; }
+      cards.push({ card, status: r.status, raw: label });
+    }
+    return { cards, marks, notes };
+  }
+
+  // ============ 抓取 → 人工核对 → 下载 ============
+  // 核对区的状态：cards 数组（每个含 card/status/raw/from），marks 数组
+  let reviewCards = [];   // [{ card, status, raw, from, removed }]
+  let reviewMarks = [];
+  let currentTag = '本地鸟种';
+  let currentName = '';
+
+  function renderReview() {
+    const nOk = reviewCards.filter(c => !c.removed && c.status === 'ok').length;
+    const nAlias = reviewCards.filter(c => !c.removed && c.status === 'alias').length;
+    const nMiss = reviewCards.filter(c => !c.removed && c.status === 'miss').length;
+    const nKept = reviewCards.filter(c => !c.removed).length;
+    $('summary').innerHTML =
+      `<div><b>${nKept}</b> / ${reviewCards.length} 张卡片</div>` +
+      (reviewMarks.length ? `<div><b class="badge b-ok">${reviewMarks.length}</b> 张辨识点</div>` : '') +
+      `<div><b class="badge b-ok">${nOk}</b> 名录一致</div>` +
+      `<div><b class="badge b-alias">${nAlias}</b> 名录近似</div>` +
+      `<div><b class="badge b-miss">${nMiss}</b> 名录未收录</div>`;
+    $('reviewHint').textContent = '共 ' + nKept + ' 张，可改鸟名、删错误卡片';
+    $('cards').innerHTML = reviewCards.map((c, i) => {
+      if (c.removed) return '';
+      const b = c.status === 'ok' ? 'b-ok' : c.status === 'alias' ? 'b-alias' : 'b-miss';
+      const meta = [c.card.en, c.card.fam].filter(Boolean).join(' · ');
+      return `<div class="card" data-i="${i}">
+        <img src="${c.card.image}">
+        <div class="head"><span class="st"><span class="badge ${b}">${{ok:'✅',alias:'🟠',miss:'🔴'}[c.status]}</span></span>
+          <input class="name" value="${esc(c.card.name)}" data-i="${i}">
+          <button class="del" data-i="${i}" title="删除">✕</button>
+        </div>
+        <div class="meta">${esc(meta)}${c.from ? ' · ' + esc(c.from) : ''}</div>
+        <div class="raw">原文：${esc(c.raw)}</div>
+      </div>`;
+    }).join('');
+    // 绑定：改鸟名 + 删除
+    $('cards').querySelectorAll('input.name').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const i = +inp.dataset.i;
+        reviewCards[i].card.name = inp.value.trim() || reviewCards[i].card.name;
+        reviewCards[i].status = 'ok';  // 人工改过 → 视为已确认
+      });
+    });
+    $('cards').querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = +btn.dataset.i;
+        reviewCards[i].removed = true;
+        renderReview();
+      });
+    });
+    renderMarks();
+  }
+
+  // 辨识点栏：有则显示，无则隐藏
+  function renderMarks() {
+    const block = $('marksBlock');
+    if (!reviewMarks.length) {
+      block.style.display = 'none';
+      return;
+    }
+    block.style.display = 'block';
+    $('marksCount').textContent = reviewMarks.length + ' 张';
+    $('marksGrid').innerHTML = reviewMarks.map((m, i) => {
+      const kb = m.startsWith('data:') ? '' : (m.length / 1024).toFixed(0) + ' KB';
+      return `<div class="mark-item" data-i="${i}">
+        <img src="${m}">
+        <div class="foot">
+          <span class="info">第 ${i + 1} 张${kb ? ' · ' + kb : ''}</span>
+          <button class="del" data-i="${i}" title="删除">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+    $('marksGrid').querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        reviewMarks.splice(+btn.dataset.i, 1);
+        renderMarks();
+        renderReview();
+      });
+    });
+  }
+
+  // 本地上传辨识点图（无损压缩）
+  $('btnAddMark').onclick = () => $('inMark').click();
+  $('inMark').onchange = async e => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (!files.length) return;
+    $('status').textContent = '正在压缩辨识点图…';
+    for (const f of files) {
+      try {
+        const lf = await fileToLossless(f);
+        reviewMarks.push('data:image/' + lf.fmt + ';base64,' + bufToB64(lf.buf));
+      } catch (err) {
+        $('status').textContent = '出错：' + (err && err.message ? err.message : err);
+        return;
+      }
+    }
+    renderMarks();
+    renderReview();
+    $('status').textContent = `已添加 ${files.length} 张辨识点图。`;
+  };
+
+  function currentTagValue() {
+    return (document.querySelector('#tagBox input[name=tag]:checked') || {}).value || '本地鸟种';
+  }
+
+  $('btnParse').onclick = async () => {
+    const sel = selectedSrcs();
+    if (!sel.length) return;
+    currentTag = currentTagValue();
+    currentName = $('nameInput').value.trim() || sel[0].name;
+    const st = $('status');
+    st.className = ''; st.textContent = '抓取中…';
+
+    try {
+      reviewCards = [];
+      reviewMarks = [];
+      for (const s of sel) {
+        st.textContent = `正在抓取「${s.name}」…`;
+        const res = s.kind === 'html' ? await convertHtml(s.file) : await convertDocx(s.file);
+        for (const c of res.cards) reviewCards.push({ ...c, from: s.name, removed: false });
+        for (const m of (res.marks || [])) reviewMarks.push(m);
+      }
+      $('reviewStep').style.display = 'block';
+      renderReview();
+      st.textContent = `抓取完成：${reviewCards.length} 张卡片${reviewMarks.length ? '，' + reviewMarks.length + ' 张辨识点' : ''}。请在下面核对、修改、删除。`;
+      $('reviewStep').scrollIntoView({ behavior: 'smooth' });
+    } catch (e) {
+      st.className = 'err';
+      st.textContent = '出错：' + (e && e.message ? e.message : e);
+    }
+  };
+
+  $('btnDownload').onclick = () => {
+    const kept = reviewCards.filter(c => !c.removed);
+    // 每张卡：只保留 name / image / en / sci / fam
+    const cards = kept.map(c => {
+      const o = { name: c.card.name, image: c.card.image };
+      if (c.card.en) o.en = c.card.en;
+      if (c.card.sci) o.sci = c.card.sci;
+      if (c.card.fam) o.fam = c.card.fam;
+      return o;
+    });
+    // marks 必须排在 cards 前面
+    const obj = { name: currentName, type: currentTag };
+    if (reviewMarks.length) obj.marks = reviewMarks;
+    obj.cards = cards;
+    const json = JSON.stringify(obj);
+    const safe = currentName.replace(/[<>:"/\\|?*]/g, '-');
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = safe + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    $('status').textContent = `已下载 ${safe}.json（${kept.length} 张卡片${reviewMarks.length ? '，' + reviewMarks.length + ' 张辨识点' : ''}，${(blob.size / 1048576).toFixed(2)} MB），拖进 GitHub content/ 目录即可。`;
+  };
+
+  $('btnReparse').onclick = () => $('btnParse').click();
+  $('btnRemoveAll').onclick = () => {
+    reviewCards.forEach(c => c.removed = true);
+    renderReview();
+  };
+
+  // ============ 测试钩子（供自动化验证，不影响正常使用） ============
+  window.__test = {
+    addFiles: (files) => { addFiles(files); return srcs.length; },
+    convertHtml: convertHtml,
+    convertDocx: convertDocx,
+    extractNames: extractNames,
+  };
+})();
+</script>
+</body>
+</html>
