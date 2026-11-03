@@ -79,6 +79,21 @@ button{font:inherit;cursor:pointer}
 .flash-name{padding:18px;text-align:center;font-size:26px;font-weight:700;letter-spacing:2px;background:#fbfdf9}
 .flash-controls{margin-top:14px}
 
+/* 鸣唱 */
+.flash-audio{padding:12px 14px;border-top:1px solid var(--border);background:#fbfdf9}
+.audio-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.audio-btn{border:1px solid var(--border);background:#fff;color:var(--deep);border-radius:9px;padding:10px 14px;font-size:14px}
+.audio-btn.playing{background:var(--green);color:#fff;border-color:var(--green)}
+.audio-track{height:4px;background:#e6ece2;border-radius:2px;margin-top:10px;overflow:hidden}
+.audio-track i{display:block;height:100%;width:0;background:var(--green);transition:width .15s linear}
+
+/* 我的题库入口 */
+.bank-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
+.fav-btn{border:none;background:transparent;font-size:19px;line-height:1;color:var(--muted);padding:6px 4px;flex:none}
+.fav-btn.on{color:#d99b1e}
+.fav-hint{color:var(--muted);font-size:12px}
+.deck-item .btn{padding:9px 12px;font-size:13px}
+
 .collections-list{display:flex;flex-direction:column;gap:10px;margin-top:4px}
 .collection-item{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
 .col-name{font-weight:600}
@@ -172,6 +187,10 @@ body.has-bar .view{padding-bottom:96px}
       <input id="search-input" type="text" placeholder="搜索卡片组，如：海南" autocomplete="off" />
       <button id="btn-clear-search" class="btn ghost">清空</button>
     </div>
+    <div class="bank-row">
+      <span class="field-label" style="margin:0">📁 我的题库 <span id="col-sum" class="hint"></span></span>
+      <button id="btn-collections" class="btn">打开</button>
+    </div>
     <label class="opt select-all-line" id="select-all-line" style="display:none">
       <input type="checkbox" id="select-all-check" /> 全选
     </label>
@@ -187,13 +206,6 @@ body.has-bar .view{padding-bottom:96px}
     <summary class="field-label" style="margin:0">📋 同步诊断 <span id="diag-sum" class="hint"></span></summary>
     <div id="diag-box" class="diag-box"></div>
   </details>
-
-  <section class="card">
-    <div class="row" style="justify-content:space-between">
-      <span class="field-label" style="margin:0">📁 我的题库 <span id="col-sum" class="hint"></span></span>
-      <button id="btn-collections" class="btn">打开</button>
-    </div>
-  </section>
 </div>
 
 <!-- 多选合并刷闪卡：底部操作条 -->
@@ -216,17 +228,21 @@ body.has-bar .view{padding-bottom:96px}
         <img id="flash-img" alt="鸟图" />
       </div>
       <div id="flash-name" class="flash-name hidden">——</div>
+      <div id="flash-audio" class="flash-audio hidden">
+        <div id="audio-buttons" class="audio-buttons"></div>
+        <div class="audio-track"><i id="audio-fill"></i></div>
+      </div>
     </div>
     <!-- 辨识点：与闪卡同页面，可滚动查看 -->
     <div id="marks-stage" class="marks-stage hidden">
       <div class="marks-bar">
-        <span id="marks-count" class="marks-count">辨识点</span>
+        <span id="marks-count" class="marks-count">辨识图</span>
         <button id="btn-marks-back" class="btn ghost">← 返回闪卡</button>
       </div>
       <div id="marks-body" class="marks-body">
         <p class="empty">正在加载…</p>
       </div>
-      <p class="marks-tip">点任意一张图可放大查看</p>
+      <p class="marks-tip">点图可放大查看</p>
     </div>
     <div class="row flash-controls" id="flash-card-controls">
       <button id="btn-show" class="btn primary big">显示鸟种名称</button>
@@ -237,7 +253,7 @@ body.has-bar .view{padding-bottom:96px}
     </div>
     <div class="row flash-controls">
       <button id="btn-fav" class="btn big">⭐ 收藏</button>
-      <button id="btn-marks" class="btn big mark-btn hidden">🔍 辨识点</button>
+      <button id="btn-marks" class="btn big mark-btn hidden">🔍 辨识图</button>
     </div>
   </section>
 </div>
@@ -262,6 +278,11 @@ body.has-bar .view{padding-bottom:96px}
     <button id="btn-collections-back" class="btn ghost">← 返回</button>
     <h1 style="font-size:18px;margin:0;flex:1">📁 我的题库</h1>
   </header>
+  <section class="card">
+    <div class="field-label" style="margin:0">⭐ 收藏的卡片组 <span id="fav-sum" class="hint"></span></div>
+    <p class="fav-hint" style="margin:6px 0 0">在首页每组右边点 ☆ 收藏，这里就能一键刷。</p>
+    <div id="fav-list" class="collections-list" style="margin-top:10px"></div>
+  </section>
   <section class="card">
     <div class="row">
       <input id="new-collection-name" type="text" placeholder="新建题库名称，如：目标鸟种" />
@@ -302,14 +323,22 @@ const CFG = {
 };
 const API_LIST = 'https://api.github.com/repos/'+CFG.owner+'/'+CFG.repo+'/contents/'+CFG.dir+'?ref='+CFG.ref;
 const LS_LIST = 'birdcards.list.v2', LS_NAME = 'birdcards.names.v2', LS_HIDDEN = 'birdcards.hidden.v2';
+const LS_FAV = 'birdcards.favdecks.v1';
+const LS_AUDIO = 'birdcards.audiomap.v1';
 
 // ---------- 状态 ----------
 let decks = [];          // 本机缓存的卡片组 [{id,name,date,url,cards}]
 let remote = [];         // GitHub 目录列表 [{path,file,size,url,_name}]
 let collections = [];    // 我的题库
+const favSaved = lsGet(LS_FAV, []);
+let favDecks = new Set(Array.isArray(favSaved) ? favSaved : []); // 收藏的卡片组 path
 let selected = new Set();// 选中的分组 path
 let hidden = new Set();  // 用户在本机删除（隐藏）的分组 path
 let flashCards = [], flashIndex = 0, flashScope = '', flashDecks = [];
+let markPool = [];       // 可随机抽取的辨识图 [{src,deckName}]
+let currentMark = null;  // 当前这张卡抽到的那张
+let audioMap = {};       // 鸟名 -> 鸣唱 URL（content/audio/index.json）
+let audioMapReady = false;
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
@@ -329,6 +358,8 @@ const modalCollect=$('modal-collect'), collectList=$('collect-list');
 const collectNewName=$('collect-new-name'), btnCollectNew=$('btn-collect-new'), btnCollectClose=$('btn-collect-close');
 const marksStage=$('marks-stage'), marksBody=$('marks-body'), marksCount=$('marks-count');
 const btnMarks=$('btn-marks'), btnMarksBack=$('btn-marks-back'), flashCardBox=$('flash-card-box');
+const flashAudio=$('flash-audio'), audioButtons=$('audio-buttons'), audioFill=$('audio-fill');
+const favList=$('fav-list'), favSum=$('fav-sum');
 const zoomView=$('zoom-view'), zoomImg=$('zoom-img'), zoomCanvas=$('zoom-canvas'), zoomLabel=$('zoom-label');
 const btnZoomClose=$('btn-zoom-close'), btnZoomPrev=$('btn-zoom-prev'), btnZoomNext=$('btn-zoom-next');
 
@@ -341,6 +372,63 @@ function lsGet(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v
 function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
 function setStatus(msg,cls){ loadStatus.textContent=msg; loadStatus.className='status '+(cls||''); }
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// 音频：支持 data: / 绝对 URL / 相对 content/ 的路径；每鸟最多 2 条
+function resolveAudio(list, base){
+  if(!Array.isArray(list)) return [];
+  return list.slice(0,2).map(a=>{
+    if(!a) return '';
+    if(/^(data:|blob:|https?:)/i.test(a)) return a;
+    try{ return new URL(a, base).href; }catch(e){ return a; }
+  }).filter(Boolean);
+}
+// ---------- 鸣唱总表 content/audio/index.json ----------
+// { "灰雁": ["audio/灰雁.m4a"], ... }  路径相对 content/
+function contentBase(){ return new URL(CFG.dir + '/', location.href).href; }
+async function loadAudioMap(force){
+  if(audioMapReady && !force) return;
+  const cache = lsGet(LS_AUDIO, null);
+  if(!force && cache && cache.map && Date.now() - (cache.ts||0) < 6*3600*1000){
+    audioMap = cache.map;
+    audioMapReady = true;
+    return;
+  }
+  try{
+    const base = contentBase();
+    const r = await fetch(new URL('audio/index.json', base).href, {cache:'no-store'});
+    if(r.ok){
+      const data = await r.json();
+      const map = {};
+      Object.keys(data || {}).forEach(k=>{
+        const v = data[k];
+        const arr = Array.isArray(v) ? v : [v];
+        const list = arr.slice(0,2).map(p=>{
+          if(!p) return '';
+          if(/^(data:|blob:|https?:)/i.test(p)) return p;
+          try{ return new URL(p, base).href; }catch(e){ return p; }
+        }).filter(Boolean);
+        if(list.length) map[String(k).trim()] = list;
+      });
+      audioMap = map;
+      audioMapReady = true;
+      lsSet(LS_AUDIO, {ts:Date.now(), map});
+      return;
+    }
+  }catch(e){}
+  if(cache && cache.map) audioMap = cache.map;
+  audioMapReady = true;
+}
+// 这张卡放哪几段：卡片自带的 audio 优先，否则按鸟名查总表
+function effectiveAudio(c){
+  if(!c) return [];
+  if(Array.isArray(c.audio) && c.audio.length) return c.audio;
+  const n = String(c.name || '').trim();
+  if(audioMap[n]) return audioMap[n];
+  const short = n.replace(/[（(].*?[)）]/g, '').trim();
+  if(audioMap[short]) return audioMap[short];
+  // 兼容「灰雁 Greylag Goose」这类带英文后缀的卡片名
+  const cn = n.replace(/[^\u4e00-\u9fa5].*$/, '').trim();
+  return audioMap[cn] || [];
+}
 
 // ---------- IndexedDB（本机缓存 / 题库） ----------
 const DB_NAME='birdcards', DB_VERSION=2;
@@ -513,17 +601,18 @@ async function peekNames(force){
 function cachedDeck(url){ return decks.find(d=>d.url===url); }
 async function getCards(d){
   const c = cachedDeck(d.url);
-  if(c && c.cards && c.cards.length) return c.cards;
+  if(c && c.cards && c.cards.length && c.v>=2) return c.cards;
   const r = await fetch(d.url);
   if(!r.ok) throw new Error('HTTP '+r.status);
   const data = await r.json();
   const raw = Array.isArray(data)?data:(data.cards||[]);
-  const cards = raw.map(x=>({id:uid(),name:(x.name||'').trim(),image:x.image||''}))
+  const cards = raw.map(x=>({id:uid(),name:(x.name||'').trim(),image:x.image||'',
+                              audio:resolveAudio(x.audio,d.url),_deck:d.url}))
                     .filter(x=>x.name||x.image);
   if(!cards.length) throw new Error('内容里没有鸟图/鸟名');
   const deck = { id:uid(), name:(data.name||d.file.replace(/\.json$/i,'')).trim(),
                  type:(data.type||d._type||'').trim(),
-                 date:Date.now(), url:d.url, cards,
+                 date:Date.now(), url:d.url, cards, v:2,
                  marks:Array.isArray(data.marks)?data.marks:[] };
   decks = decks.filter(x=>x.url!==d.url).concat([deck]);
   evictCache();
@@ -557,6 +646,7 @@ function visibleDecks(){
   return remote.filter(d=>!hidden.has(d.path));
 }
 function renderDecks(){
+  renderFavDecks(); updateColSum();
   const all = visibleDecks();
   if(!all.length){
     deckList.innerHTML=remote.length
@@ -623,17 +713,94 @@ function renderDecks(){
     study.className='btn primary'; study.textContent='刷闪卡';
     study.addEventListener('click',()=>startOne(d));
 
+    const favBtn=document.createElement('button');
+    favBtn.className='fav-btn'+(favDecks.has(d.path)?' on':'');
+    favBtn.textContent=favDecks.has(d.path)?'★':'☆';
+    favBtn.title=favDecks.has(d.path)?'取消收藏':'收藏这个卡片组';
+    favBtn.addEventListener('click',e=>{ e.stopPropagation(); toggleFav(d); });
+
     const delBtn=document.createElement('button');
     delBtn.className='btn ghost'; delBtn.textContent='删除';
     delBtn.addEventListener('click',()=>deleteDeck(d));
 
     div.appendChild(chk); div.appendChild(info); div.appendChild(study);
-    div.appendChild(delBtn);
+    div.appendChild(favBtn); div.appendChild(delBtn);
     deckList.appendChild(div);
   });
   updateMultiBar();
   renderRestore();
   renderDiag();
+}
+// ---------- 收藏卡片组 ----------
+function deckMetaText(d){
+  const c = cachedDeck(d.url);
+  const tp = typeOf(d);
+  return [(c ? c.cards.length + ' 张' : '未加载'), tp].filter(Boolean).join(' · ');
+}
+function updateColSum(){
+  const parts = [];
+  if(collections.length) parts.push(collections.length + ' 组题库');
+  if(favDecks.size) parts.push(favDecks.size + ' 个收藏组');
+  colSum.textContent = parts.length ? '（' + parts.join(' · ') + '）' : '';
+  if(favSum) favSum.textContent = favDecks.size ? '（' + favDecks.size + ' 组）' : '';
+}
+function toggleFav(d){
+  const on = !favDecks.has(d.path);
+  if(on) favDecks.add(d.path); else favDecks.delete(d.path);
+  lsSet(LS_FAV, Array.from(favDecks));
+  setStatus((on ? '已收藏「' : '已取消收藏「') + displayName(d) + '」', 'ok');
+  renderDecks();
+  updateColSum();
+}
+function renderFavDecks(){
+  if(!favList) return;
+  const nameCache = lsGet(LS_NAME, {});
+  const rows = [];
+  favDecks.forEach(p => {
+    const d = remote.find(x => x.path === p);
+    if(d) rows.push({ d, name: displayName(d), meta: deckMetaText(d) });
+    else rows.push({ d: null, p, name: (nameCache[p] && nameCache[p].n) || p.split('/').pop(), meta: '不在当前列表里' });
+  });
+  if(!rows.length){
+    favList.innerHTML = '<p class="empty">还没有收藏。回首页点任意组右边的 ☆。</p>';
+    return;
+  }
+  favList.innerHTML = '';
+  rows.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'deck-item';
+    const info = document.createElement('div');
+    info.className = 'deck-info';
+    const nm = document.createElement('div');
+    nm.className = 'deck-name';
+    nm.textContent = r.name;
+    const mt = document.createElement('div');
+    mt.className = 'deck-meta';
+    mt.textContent = r.meta;
+    info.appendChild(nm); info.appendChild(mt);
+    const star = document.createElement('button');
+    star.className = 'fav-btn on';
+    star.textContent = '★';
+    star.title = '取消收藏';
+    star.addEventListener('click', () => {
+      if(r.d){ toggleFav(r.d); }
+      else{
+        favDecks.delete(r.p);
+        lsSet(LS_FAV, Array.from(favDecks));
+        renderDecks(); updateColSum();
+      }
+    });
+    div.appendChild(info);
+    if(r.d){
+      const go = document.createElement('button');
+      go.className = 'btn primary';
+      go.textContent = '刷这组';
+      go.addEventListener('click', () => startOne(r.d));
+      div.appendChild(go);
+    }
+    div.appendChild(star);
+    favList.appendChild(div);
+  });
 }
 // 该组在 GitHub 上的文件页（可直接替换）
 function ghFileUrl(d){
@@ -664,7 +831,7 @@ function renderDiag(){
   sum.textContent = warns ? ('· '+warns+' 项待处理') : (remote.length?('· 全部正常'):'');
   if(!rows.length){ box.innerHTML='<p class="empty">还没有卡片组。</p>'; return; }
   let h = '<div class="diag-head">'
-    + '<span>文件名</span><span>内部 name</span><span>type</span><span>卡数</span><span>辨识点</span></div>';
+    + '<span>文件名</span><span>内部 name</span><span>type</span><span>卡数</span><span>辨识图</span></div>';
   rows.forEach(r=>{
     h += '<div class="diag-row'+(r.notes.length?' bad':'')+'">'
       + '<span class="d1" title="'+esc(r.file)+'">'+esc(r.file)+'</span>'
@@ -749,14 +916,14 @@ function updateMultiBar(){
   btnMulti.disabled=false;
 }
 
-// ---------- 辨识点 ----------
-// 从若干个分组里取出全部辨识点图
-async function collectMarks(decks){
+// ---------- 辨识图 ----------
+// 取出若干分组各自的辨识图（每组一般 1 张）
+async function collectMarks(list){
   const out = [];
-  for(const d of decks){
+  for(const d of list){
     if(!d) continue;
     const c = cachedDeck(d.url);
-    let marks = (c && c.marks) ? c.marks : null;
+    let marks = (c && c.v>=2 && Array.isArray(c.marks)) ? c.marks : null;
     if(!marks || !marks.length){
       try{
         const r = await fetch(d.url);
@@ -764,12 +931,13 @@ async function collectMarks(decks){
         const data = await r.json();
         marks = Array.isArray(data.marks)?data.marks:[];
         const raw = Array.isArray(data)?data:(data.cards||[]);
-        const cards = raw.map(x=>({id:uid(),name:(x.name||'').trim(),image:x.image||''}))
+        const cards = raw.map(x=>({id:uid(),name:(x.name||'').trim(),image:x.image||'',
+                                    audio:resolveAudio(x.audio,d.url),_deck:d.url}))
                           .filter(x=>x.name||x.image);
         if(cards.length){
           const deck = { id:uid(), name:(data.name||d.file.replace(/\.json$/i,'')).trim(),
                          type:(data.type||d._type||'').trim(),
-                         date:Date.now(), url:d.url, cards, marks };
+                         date:Date.now(), url:d.url, cards, v:2, marks };
           decks = decks.filter(x=>x.url!==d.url).concat([deck]);
           evictCache(); await saveDecks();
         }
@@ -779,58 +947,67 @@ async function collectMarks(decks){
   }
   return out;
 }
-// ---------- 辨识点：与闪卡同页面展示 ----------
-let marksImages = [];      // 当前组的全部辨识点图（扁平）
-let marksMode = false;     // 是否处于「辨识点模式」
+// ---------- 辨识图：与闪卡同页面展示 ----------
+let marksImages = [];      // 当前正在看的图（随机抽到的那张）
+let marksMode = false;     // 是否处于「辨识图模式」
 
-async function showMarks(){
-  const list = flashDecks||[];
-  marksBody.innerHTML='<p class="empty">正在加载…</p>';
-  marksCount.textContent='辨识点';
+// 当前这张卡属于哪个组
+function deckOfCard(c){
+  if(!c) return null;
+  return (flashDecks||[]).find(d=>d.url===c._deck) || null;
+}
+function isIdentDeck(d){
+  return /辨识/.test(typeOf(d)||'');
+}
+// 各组辨识图合成图池；每翻一张卡随机抽一张
+async function loadMarkPool(){
+  const ident = (flashDecks||[]).filter(isIdentDeck);
+  markPool = [];
+  if(!ident.length){ updateMarkForCard(currentCard()); return; }
+  try{
+    const groups = await collectMarks(ident);
+    const pool = [];
+    groups.forEach(g=>g.marks.forEach(src=>pool.push({src, deckName:g.name})));
+    markPool = pool;
+  }catch(e){ markPool = []; }
+  if(!marksMode) updateMarkForCard(currentCard());
+}
+// 只在这一张卡属于「辨识组」时给出按钮
+function updateMarkForCard(c){
+  const deck = deckOfCard(c);
+  currentMark = (deck && isIdentDeck(deck) && markPool.length)
+    ? markPool[Math.floor(Math.random()*markPool.length)]
+    : null;
+  btnMarks.classList.toggle('hidden', !currentMark || marksMode);
+}
+function showMarks(){
+  if(!currentMark) return;
+  stopAudio();
+  marksMode = true;
+  marksImages = [currentMark.src];
+  marksCount.textContent = '辨识图 · 随机取自 ' + currentMark.deckName;
+  marksBody.innerHTML = '';
+  const fig = document.createElement('div');
+  fig.className = 'marks-figure';
+  const img = document.createElement('img');
+  img.src = currentMark.src;
+  img.alt = '辨识图';
+  const cap = document.createElement('span');
+  cap.className = 'marks-cap';
+  cap.textContent = currentMark.deckName;
+  const note = document.createElement('p');
+  note.className = 'marks-tip';
+  note.textContent = '这一张是随机抽到的，下一张卡会重新抽。';
+  fig.appendChild(img); fig.appendChild(cap);
+  img.addEventListener('load',()=>{ cap.textContent = currentMark.deckName + ' · ' + img.naturalWidth + '×' + img.naturalHeight; });
+  fig.addEventListener('click',()=>openZoom(0));
+  marksBody.appendChild(fig);
+  marksBody.appendChild(note);
   marksStage.classList.remove('hidden');
   flashCardBox.classList.add('hidden');
   $('flash-card-controls').classList.add('hidden');
   $('flash-nav-controls').classList.add('hidden');
-  marksMode = true;
-  try{
-    const groups = await collectMarks(list);
-    marksImages = [];
-    groups.forEach(g=>g.marks.forEach(src=>marksImages.push(src)));
-    if(!marksImages.length){
-      marksBody.innerHTML='<p class="empty">这一组没有辨识点图。</p>';
-      marksCount.textContent='辨识点 · 0 张';
-      return;
-    }
-    marksCount.textContent='辨识点 · '+marksImages.length+' 张'
-      + (groups.length>1 ? '（'+groups.length+' 组）' : '');
-    marksBody.innerHTML='';
-    let idx = 0;
-    groups.forEach(g=>{
-      if(groups.length>1){
-        const h=document.createElement('div');
-        h.className='marks-group'; h.textContent=g.name;
-        marksBody.appendChild(h);
-      }
-      g.marks.forEach(src=>{
-        idx++;
-        const fig=document.createElement('div');
-        fig.className='marks-figure';
-        const img=document.createElement('img');
-        img.src=src; img.alt='辨识点 '+idx;
-        img.loading='lazy';
-        const cap=document.createElement('span');
-        cap.className='marks-cap'; cap.textContent=idx+' / '+marksImages.length;
-        img.addEventListener('load',()=>{
-          cap.textContent = idx+' / '+marksImages.length+' · '+img.naturalWidth+'×'+img.naturalHeight;
-        });
-        fig.appendChild(img); fig.appendChild(cap);
-        fig.addEventListener('click',()=>openZoom(idx-1));
-        marksBody.appendChild(fig);
-      });
-    });
-  }catch(e){
-    marksBody.innerHTML='<p class="empty">加载失败：'+esc(e.message)+'</p>';
-  }
+  btnMarks.classList.add('hidden');
 }
 function hideMarks(){
   marksMode = false;
@@ -838,6 +1015,7 @@ function hideMarks(){
   flashCardBox.classList.remove('hidden');
   $('flash-card-controls').classList.remove('hidden');
   $('flash-nav-controls').classList.remove('hidden');
+  btnMarks.classList.toggle('hidden', !currentMark);
 }
 
 // ---------- 放大查看 ----------
@@ -977,23 +1155,80 @@ function startFlash(cards, scope, decks){
   flashIndex=0; flashScope=scope||'闪卡';
   flashScopeEl.textContent=flashScope;
   flashDecks = decks||[];
-  // 有辨识点图才显示【辨识点】按钮
-  btnMarks.classList.toggle('hidden', !flashDecks.some(d=>d && (d._marks || (cachedDeck(d.url)&&cachedDeck(d.url).marks&&cachedDeck(d.url).marks.length))));
+  markPool=[]; currentMark=null;
+  btnMarks.classList.add('hidden');
   viewHome.classList.add('hidden'); viewCollections.classList.add('hidden');
   viewFlash.classList.remove('hidden');
   showFlash();
+  loadMarkPool();   // 后台准备图池，好了再决定哪张卡显示按钮
+  loadAudioMap().then(()=>{ if(!viewFlash.classList.contains('hidden') && !marksMode) renderAudio(currentCard()); });
 }
 function currentCard(){ return flashCards[flashIndex]; }
 function showFlash(){
+  stopAudio();
+  if(marksMode) hideMarks();
   const c=currentCard();
   flashProgress.textContent=(flashIndex+1)+' / '+flashCards.length;
   flashName.classList.add('hidden');
   flashImg.src=c.image||'';
+  renderAudio(c);
+  updateMarkForCard(c);
 }
+
+// ---------- 鸣唱 ----------
+const audioEl = new Audio();
+audioEl.preload='metadata';
+let audioBtn=null, audioSrc='';
+function stopAudio(){
+  try{ audioEl.pause(); audioEl.currentTime=0; }catch(e){}
+  if(audioBtn){ audioBtn.classList.remove('playing'); audioBtn.textContent=audioBtn.dataset.label; audioBtn=null; }
+  audioSrc='';
+  if(audioFill) audioFill.style.width='0%';
+}
+function renderAudio(c){
+  audioButtons.innerHTML='';
+  const list=effectiveAudio(c);
+  if(!list.length){ flashAudio.classList.add('hidden'); return; }
+  flashAudio.classList.remove('hidden');
+  list.forEach((src,i)=>{
+    const b=document.createElement('button');
+    b.className='audio-btn';
+    b.dataset.label='🔊 鸣唱 '+(i+1);
+    b.textContent=b.dataset.label;
+    b.addEventListener('click',()=>toggleAudio(b,src));
+    audioButtons.appendChild(b);
+  });
+}
+function toggleAudio(btn,src){
+  if(audioBtn===btn){
+    if(!audioEl.paused){
+      audioEl.pause();
+      btn.classList.remove('playing');
+      btn.textContent='▶ 继续';
+    }else{
+      audioEl.play().then(()=>{ btn.classList.add('playing'); btn.textContent='⏸ 暂停'; })
+        .catch(()=>{ btn.textContent='⚠ 无法播放'; });
+    }
+    return;
+  }
+  if(audioBtn){ audioBtn.classList.remove('playing'); audioBtn.textContent=audioBtn.dataset.label; }
+  audioEl.src=src; audioSrc=src; audioBtn=btn;
+  audioEl.play().then(()=>{ btn.classList.add('playing'); btn.textContent='⏸ 暂停'; })
+    .catch(()=>{ btn.textContent='⚠ 无法播放'; audioBtn=null; });
+}
+audioEl.addEventListener('timeupdate',()=>{
+  const d=audioEl.duration||0;
+  if(audioFill) audioFill.style.width = d ? (audioEl.currentTime/d*100).toFixed(1)+'%' : '0%';
+});
+audioEl.addEventListener('ended',()=>{
+  if(audioBtn){ audioBtn.classList.remove('playing'); audioBtn.textContent=audioBtn.dataset.label; audioBtn=null; }
+  audioSrc='';
+  if(audioFill) audioFill.style.width='100%';
+});
 
 // ---------- 题库 ----------
 function renderCollections(){
-  colSum.textContent=collections.length?('（'+collections.length+' 组）'):'';
+  updateColSum();
   if(!collections.length){
     collectionsList.innerHTML='<p class="empty">还没有题库。点「新建」创建，然后在闪卡里点「⭐ 收藏」把鸟加进来。</p>';
     return;
@@ -1034,7 +1269,7 @@ function renderCollectList(card){
     row.appendChild(nm); row.appendChild(mk);
     row.addEventListener('click',()=>{
       if(has) col.cards=col.cards.filter(c=>c.name!==card.name);
-      else col.cards.push({id:uid(),name:card.name,image:card.image});
+      else col.cards.push({id:uid(),name:card.name,image:card.image,audio:(card.audio||[]).slice()});
       saveCollections(); renderCollectList(card); renderCollections();
     });
     collectList.appendChild(row);
@@ -1042,7 +1277,7 @@ function renderCollectList(card){
 }
 
 // ---------- 事件 ----------
-btnRefresh.addEventListener('click',()=>fetchList(true));
+btnRefresh.addEventListener('click',()=>{ loadAudioMap(true); fetchList(true); });
 // 顶部「上传新卡片组」直达 GitHub 上传页
 $('gh-upload').href='https://github.com/'+CFG.owner+'/'+CFG.repo+'/upload/'+CFG.ref+'/'+CFG.dir;
 searchInput.addEventListener('input',()=>renderDecks());
@@ -1058,7 +1293,7 @@ selectAllCheck.addEventListener('change',()=>{
 });
 btnMulti.addEventListener('click',startMulti);
 btnClear.addEventListener('click',()=>{ selected.clear(); renderDecks(); updateMultiBar(); });
-btnCollections.addEventListener('click',()=>{ renderCollections(); viewHome.classList.add('hidden'); viewCollections.classList.remove('hidden'); });
+btnCollections.addEventListener('click',()=>{ renderCollections(); renderFavDecks(); updateColSum(); viewHome.classList.add('hidden'); viewCollections.classList.remove('hidden'); });
 btnCollectionsBack.addEventListener('click',()=>{ viewCollections.classList.add('hidden'); viewHome.classList.remove('hidden'); });
 btnNewCollection.addEventListener('click',()=>{
   const name=newCollectionName.value.trim();
@@ -1066,7 +1301,7 @@ btnNewCollection.addEventListener('click',()=>{
   collections.push({id:uid(),name,cards:[]});
   saveCollections(); newCollectionName.value=''; renderCollections();
 });
-btnBack.addEventListener('click',()=>{ hideMarks(); closeZoom(); viewFlash.classList.add('hidden'); viewHome.classList.remove('hidden'); });
+btnBack.addEventListener('click',()=>{ stopAudio(); hideMarks(); closeZoom(); viewFlash.classList.add('hidden'); viewHome.classList.remove('hidden'); });
 btnShow.addEventListener('click',()=>{
   flashName.textContent=currentCard().name||'（未填写鸟名）';
   flashName.classList.remove('hidden');
@@ -1088,7 +1323,7 @@ btnCollectNew.addEventListener('click',()=>{
   if(!name){ alert('请输入题库名称'); return; }
   const col={id:uid(),name,cards:[]};
   const c=currentCard();
-  col.cards.push({id:uid(),name:c.name,image:c.image});
+  col.cards.push({id:uid(),name:c.name,image:c.image,audio:(c.audio||[]).slice()});
   collections.push(col); saveCollections();
   collectNewName.value=''; renderCollectList(c); renderCollections();
 });
@@ -1098,6 +1333,7 @@ btnCollectNew.addEventListener('click',()=>{
   try{ decks=await dbGetAll('decks'); }catch(e){}
   try{ collections=await dbGetAll('collections'); }catch(e){}
   try{ hidden=new Set(lsGet(LS_HIDDEN,[])); }catch(e){ hidden=new Set(); }
+  loadAudioMap();          // 不等它，先出列表；音频总表到了再显示按钮
   renderCollections();
   await fetchList(false);
   syncSub.textContent='共享卡片组 · '+visibleDecks().length+' 组';
